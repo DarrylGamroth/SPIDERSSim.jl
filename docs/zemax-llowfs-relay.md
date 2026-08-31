@@ -182,8 +182,7 @@ residual. Preparation and compilation were outside the timed interval.
 The comparable prepared SCC path at 256 had a 33.845 ms median. Thus most of
 the 256-grid LLOWFS time is already spent in the common SPIDERS propagation;
 making only the post-Lyot relay smaller cannot turn this model into a 1 kHz
-plant. CUDA results are not recorded because the available WSL CUDA host was
-not reachable during the measurement session.
+plant.
 
 Reproduce the CPU benchmark with, for example:
 
@@ -194,6 +193,57 @@ julia --project=. benchmarks/benchmark_prepared_llowfs.jl 512 100 5 128 Float32 
 The benchmark prints environment metadata, raw latency samples, output
 sampling, checksum, and warmed allocations. Raw timing output should be saved
 with future performance claims.
+
+## CUDA timing evidence
+
+The CUDA path was measured on 2026-08-31 at source revision `48127e6` using an
+NVIDIA GeForce RTX 3050 Ti Laptop GPU with 4 GiB, compute capability 8.6,
+driver 596.08, CUDA.jl 6.3.1, CUDA runtime 13.3, Julia 1.12.6, one Julia
+thread, `Float32`, and a 128 x 128 AO residual. The model used registered
+Proper 0.2.0. CPU preparation, device adaptation, compilation, and ten warmup
+calls were outside the samples.
+
+The measured boundary is one closed-loop, synchronized call from the input
+already resident on the GPU through the reflected-Lyot relay to sensor-plane
+intensity. It includes kernel launches and `CUDA.synchronize()`. It excludes
+host/device input transfer, detector simulation, AdaptiveOpticsSim Camera and
+DM work, transport, queues, and RTC scheduling.
+
+| Grid | Samples | Median | P95 | Maximum | Mean frame rate | Relative L2 versus CPU |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 512 | 200 | 3.316 ms | 4.138 ms | 5.105 ms | 293.813 frames/s | 3.04e-6 |
+| 1024 | 100 | 13.773 ms | 14.195 ms | 14.922 ms | 72.261 frames/s | 3.30e-6 |
+| 2048 | 30 | 54.667 ms | 56.443 ms | 56.478 ms | 18.261 frames/s | 3.27e-6 |
+
+The 2048 P95 is only indicative because it has 30 samples. At the common 512
+and 1024 grids, the CUDA median was about 85 times faster than the recorded
+Ryzen 7 6800H CPU median. This is a hardware-specific comparison, not a general
+CPU/GPU speedup claim.
+
+An additional 256-grid run was both scientifically unsuitable according to
+the convergence evidence and temporally noisy (7.247 ms median, 16.311 ms
+P95, 114.145 mean frames/s). It is not used as evidence of CUDA scaling or RTC
+capacity. The laptop GPU is shared with the Windows display and changed power
+states automatically; no affinity, power locking, or exclusive-compute mode
+was applied.
+
+The synchronized CUDA call allocated about 111.8 KiB of host heap per 1024 or
+2048 propagation. Allocation isolation at 1024 attributed 111,824 bytes to
+`llowfs_propagate!` and only 16 bytes to `CUDA.synchronize()`. The CPU prepared
+path remains zero-allocation. This CUDA host allocation is an optimization
+target and means the current GPU path does not yet meet the steady-state
+zero-allocation goal.
+
+Reproduce the 1024 measurement with:
+
+```bash
+julia --project=. benchmarks/benchmark_cuda_prepared_llowfs.jl \
+    1024 100 10 128 0.1141323837216534
+```
+
+These results support a roughly 72 Hz correctness-first 1024 optical plant on
+this GPU, or about 18 Hz at 2048, before HIL integration overhead. They do not
+support a greater-than-1-kHz full-PROPER LLOWFS plant.
 
 ## Recommended two-grid LLOWFS method
 
@@ -291,7 +341,11 @@ would change the model or its deployment:
   and pixel-response nonuniformity have not been identified here.
 - The scalar model omits the -5 degree fold in global coordinates and cannot
   predict orientation or off-axis aberrations from that fold.
-- CUDA timing remains unmeasured.
+- CUDA timing has only been measured on one shared laptop GPU and has not been
+  tested under sustained HIL load, fixed GPU power policy, or independent
+  repetitions.
+- The source of approximately 112 KiB of CUDA-path host allocation per call
+  has not yet been profiled or removed.
 - No two-grid regrid has yet been implemented or qualified.
 
 The Zemax-to-Julia implementation and its unit checks first appeared in Git
