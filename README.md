@@ -75,6 +75,11 @@ invented here.
 
 ## Zemax-derived LLOWFS relay
 
+The recovered prescription, source provenance, detector/ROI evidence,
+convergence results, timing measurements, and proposed two-grid qualification
+method are recorded in
+[`docs/zemax-llowfs-relay.md`](docs/zemax-llowfs-relay.md).
+
 `prepare_llowfs` follows the common SPIDERS path to the Lyot plane, applies the
 complementary reflective coefficient, and propagates to the GoldEye sensor
 plane through the configuration-5 LLOWFS relay:
