@@ -255,6 +255,16 @@ For the Zemax-derived reflected-Lyot branch:
 julia --project=. benchmarks/benchmark_prepared_llowfs.jl 512 20 3 128 Float32 0.2282647674
 ```
 
+To attribute CUDA host allocations and compare ordinary submission with a
+capture-once CUDA Graph using the HIL-style external OPD input:
+
+```bash
+julia --project=. benchmarks/profile_cuda_prepared_llowfs.jl \
+    1024 0.1141323837216534 external
+julia --project=. benchmarks/benchmark_cuda_graph_llowfs.jl \
+    1024 100 0.1141323837216534 external
+```
+
 The final argument is the propagation-grid beam fraction. The value above
 gives approximately 15 micrometres per output sample at 1550 nm on a 512 grid.
 Use `0.1141323837` for a 1024 grid.
