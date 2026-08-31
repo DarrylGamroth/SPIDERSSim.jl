@@ -13,6 +13,11 @@ function prepared_allocation_bytes(prepared)
     return @allocated spiders_propagate!(prepared)
 end
 
+function prepared_llowfs_allocation_bytes(prepared)
+    llowfs_propagate!(prepared)
+    return @allocated llowfs_propagate!(prepared)
+end
+
 @testset "SPIDERS masks" begin
     wf = prop_begin(7.92, 1.25e-6, 128; beam_diam_fraction=0.1)
     prop_circular_aperture(wf, 7.92 / 2)
@@ -71,6 +76,25 @@ end
     @test_throws ArgumentError SpidersProper.validate(SpidersConfig(pupil_mode=:bad))
     @test_throws ArgumentError SpidersProper.validate(SpidersConfig(fpm_mode=:map))
     @test SpidersProper.validate(SpidersConfig()) isa SpidersConfig
+    @test SpidersProper.validate(LLOWFSConfig()) isa LLOWFSConfig
+    @test_throws ArgumentError SpidersProper.validate(LLOWFSConfig(
+        detector_pixel_pitch_m=14e-6,
+    ))
+end
+
+@testset "Zemax LLOWFS relay" begin
+    indices = llowfs_refractive_indices(1.55e-6)
+    @test indices.s_lah71 ≈ 1.8134701603020393 atol=1e-14
+    @test indices.s_nph5 ≈ 1.8090114983950631 atol=1e-14
+    @test indices.fused_silica ≈ 1.4440236216697244 atol=1e-14
+
+    relay = llowfs_relay_summary(1.55e-6)
+    @test relay.effective_focal_length_m ≈ 157.691076323e-3 atol=1e-12
+    @test relay.back_focal_length_m ≈ 153.859769413e-3 atol=1e-12
+    @test relay.conjugate_distance_m ≈ 223.444722793e-3 atol=1e-12
+    @test relay.detector_distance_m ≈ 223.260958398e-3 atol=1e-12
+    @test relay.detector_defocus_m ≈ -183.764395e-6 atol=1e-12
+    @test relay.lateral_magnification ≈ -0.441273881834 atol=1e-12
 end
 
 @testset "End-to-end prescription" begin
@@ -204,4 +228,35 @@ end
     end
     spiders_propagate!(external)
     @test maximum(abs, external_output .- external_baseline) > 0
+end
+
+
+@testset "Prepared LLOWFS propagation" begin
+    pupil = ones(Float32, 64, 64)
+    opd_m = zeros(Float32, 64, 64)
+    config = SpidersConfig(reference_pinhole=true)
+    prepared = prepare_llowfs(
+        1.55e-6,
+        128;
+        config,
+        pupil_amplitude=pupil,
+        pupil_sampling_m=config.telescope_diameter_m / size(pupil, 1),
+        opd_m,
+        T=Float32,
+    )
+    output = llowfs_propagate!(prepared)
+    @test output === llowfs_intensity(prepared)
+    @test size(output) == (128, 128)
+    @test all(isfinite, output)
+    @test all(>=(0), output)
+    @test maximum(output) > 0
+    @test prepared_llowfs_allocation_bytes(prepared) == 0
+
+    baseline = copy(output)
+    for column in axes(opd_m, 2)
+        @views opd_m[:, column] .= column * 1e-9
+    end
+    @test llowfs_propagate!(prepared) === output
+    @test maximum(abs, output .- baseline) > 0
+    @test prepared_llowfs_allocation_bytes(prepared) == 0
 end

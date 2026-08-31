@@ -16,6 +16,9 @@ It uses the pupil, apodizer, AO-residual, and focal-plane-mask FITS assets that
 were supplied with the MATLAB model. The original `.m` files remain in the
 repository as provenance and comparison references.
 
+The prepared API also models the reflected-Lyot LLOWFS branch using the relay
+prescription recovered from the SPIDERS Zemax archive.
+
 ## Install
 
 Proper `v0.2.0` is available from `DarrylGamrothRegistry`. Until SpidersProper
@@ -69,6 +72,64 @@ Julia model instead computes an amplitude-reflection coefficient, so the
 relation remains power conserving at antialiased mask boundaries. A measured
 coating efficiency or reflection-phase map is not yet available and is not
 invented here.
+
+## Zemax-derived LLOWFS relay
+
+`prepare_llowfs` follows the common SPIDERS path to the Lyot plane, applies the
+complementary reflective coefficient, and propagates to the GoldEye sensor
+plane through the configuration-5 LLOWFS relay:
+
+```text
+reflective Lyot mask -> 515 mm -> S-LAH71/S-NPH5 cemented doublet
+                     -> 150 mm -> 2 mm fused-silica filter
+                     -> 71.87594 mm -> GoldEye sensor
+```
+
+The model retains both curved refracting surfaces, the two glass thicknesses,
+and wavelength-dependent Zemax Sellmeier/thermal data. It uses reduced
+distances inside glass, which is the paraxial scalar-diffraction equivalent of
+propagating with the material wavelength. At 1550 nm the model gives:
+
+- doublet effective focal length: 157.691076 mm;
+- back focal length: 153.859769 mm;
+- Lyot-plane conjugate after the final lens surface: 223.444723 mm;
+- modeled detector distance: 223.260958 mm;
+- detector position relative to that conjugate: -0.183764 mm;
+- paraxial lateral magnification: -0.441274.
+
+The Zemax sensor aperture is 4.8 x 3.84 mm, consistent with 320 x 256 native
+pixels at 15 micrometres. The measured GoldEye calibration products are 34 x
+47 pixels. The deployed `spiders` path performs no downstream binning or
+resampling, so this is treated as a native-pixel software crop or hardware ROI.
+VENOMS reshapes the deployed Julia array as `(SizeX, SizeY)`, so these are
+`(320, 256)` full-frame and `(34, 47)` ROI array shapes; a row-column PROPER
+array needs an explicit axis mapping at that boundary.
+Its origin and axis orientation are not present in the saved FITS products;
+the raw VENOMS frame header carries `OffsetX` and `OffsetY` and should be used
+to recover them.
+
+```julia
+pupil = ones(Float32, 128, 128)
+opd_m = zeros(Float32, 128, 128)
+prepared = prepare_llowfs(
+    1.55e-6,
+    512;
+    pupil_amplitude=pupil,
+    pupil_sampling_m=7.92 / 128,
+    opd_m,
+    T=Float32,
+)
+
+opd_m .= next_opd
+sensor_plane_intensity = llowfs_propagate!(prepared)
+```
+
+`llowfs_propagate!` returns the optical intensity on the PROPER grid. Pixel
+area integration, flux scaling, detector noise, and ROI readout belong in
+AdaptiveOpticsSim/AdaptiveOpticsProperHIL. When direct native sampling is
+useful, a 1024 grid with `beam_diameter_fraction=0.1141323837` gives
+approximately 15 micrometres per output sample at 1550 nm. This numerical
+choice still requires convergence testing against a more highly padded grid.
 
 The bundled FITS pupil and apodizer are used by default. An analytic Subaru
 pupil and the original radial-polynomial apodizer are also available:
@@ -144,9 +205,9 @@ therefore requires about 7.8 GiB for the output alone.
   `prop_subaruPupilSpiders` helper. Select `pupil_mode=:analytic` to use the
   ported geometric approximation.
 - The model remains monochromatic per call. It includes the ideal reflective
-  Lyot-stop coefficients but does not yet add the LLOWFS relay,
-  calibration-source, iFTS, measured coating, polarization, or optomechanical
-  paths.
+  Lyot-stop coefficients and the first-order LLOWFS relay, but does not yet add
+  the calibration-source, iFTS, measured coating, polarization, refractive
+  aberrations, or optomechanical paths.
 - The detector helper retains the MATLAB model's simplified throughput and
   zero-point assumptions. For large Poisson means it uses the Gaussian limit.
 
@@ -182,6 +243,16 @@ For the prepared repeated-frame path:
 ```bash
 julia --project=. benchmarks/benchmark_prepared_propagation.jl 512 20 3 128
 ```
+
+For the Zemax-derived reflected-Lyot branch:
+
+```bash
+julia --project=. benchmarks/benchmark_prepared_llowfs.jl 512 20 3 128 Float32 0.2282647674
+```
+
+The final argument is the propagation-grid beam fraction. The value above
+gives approximately 15 micrometres per output sample at 1550 nm on a 512 grid.
+Use `0.1141323837` for a 1024 grid.
 
 `prepare_spiders` loads static FITS data, builds focal/Lyot and clear-aperture
 masks, and allocates PROPER workspaces once. `spiders_propagate!` then reuses

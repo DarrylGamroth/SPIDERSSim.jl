@@ -1,4 +1,5 @@
 abstract type AbstractSpidersEntrance end
+abstract type AbstractPreparedSpiders end
 
 struct StaticSpidersEntrance{F<:AbstractMatrix{<:Complex}} <: AbstractSpidersEntrance
     field::F
@@ -34,7 +35,7 @@ Own the static optical assets, PROPER workspace, wavefront, scratch storage,
 and output intensity for repeated SPIDERS propagation. Construct it with
 [`prepare_spiders`](@ref) and execute it with [`spiders_propagate!`](@ref).
 """
-struct PreparedSpiders{C,E,CTX,W,AP,A,F,L,S,O}
+struct PreparedSpiders{C,E,CTX,W,AP,A,F,L,S,O} <: AbstractPreparedSpiders
     config::C
     entrance::E
     context::CTX
@@ -241,9 +242,16 @@ function _prepare_fpm_opd_internal(
     return _centered_to_internal(wf, phase)
 end
 
+@inline _lyot_amplitude(stop::LyotStop, ::Val{:transmission}) =
+    stop.amplitude_transmission
+
+@inline _lyot_amplitude(stop::LyotStop, ::Val{:reflection}) =
+    stop.amplitude_reflection
+
 function _prepare_lyot_internal(
     wf::Proper.WaveFront,
     config::SpidersConfig,
+    branch::Union{Val{:transmission},Val{:reflection}}=Val(:transmission),
 )
     config.coronagraph || return nothing
     pupil_diameter = config.lyot_pupil_diameter_m
@@ -263,7 +271,7 @@ function _prepare_lyot_internal(
         obscuration_margin=config.lyot_obscuration_margin,
         spider_margin=config.lyot_spider_margin,
     )
-    return _centered_to_internal(wf, lyot.amplitude_transmission)
+    return _centered_to_internal(wf, _lyot_amplitude(lyot, branch))
 end
 
 @inline function _prepared_lens_aperture!(
@@ -500,7 +508,7 @@ function prepare_spiders(
 end
 
 @inline function _reset_prepared_field!(
-    prepared::PreparedSpiders,
+    prepared::AbstractPreparedSpiders,
     field::AbstractMatrix{<:Complex},
 )
     prop_begin!(
@@ -515,12 +523,12 @@ end
 
 
 @inline _reset_prepared_entrance!(
-    prepared::PreparedSpiders,
+    prepared::AbstractPreparedSpiders,
     entrance::StaticSpidersEntrance,
 ) = _reset_prepared_field!(prepared, entrance.field)
 
 @inline function _reset_prepared_entrance!(
-    prepared::PreparedSpiders,
+    prepared::AbstractPreparedSpiders,
     entrance::ResidualSpidersEntrance,
 )
     wf = _reset_prepared_field!(prepared, entrance.field)
@@ -540,7 +548,7 @@ end
 end
 
 @inline function _reset_prepared_entrance!(
-    prepared::PreparedSpiders,
+    prepared::AbstractPreparedSpiders,
     entrance::ExternalSpidersEntrance,
 )
     wf = _reset_prepared_field!(prepared, entrance.field)
