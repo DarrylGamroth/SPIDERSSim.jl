@@ -23,7 +23,9 @@ itself is registered, add the registry and install this repository explicitly:
 
 ```julia
 using Pkg
-Pkg.Registry.add(url="https://github.com/DarrylGamroth/PackageRegistry.git")
+Pkg.Registry.add(Pkg.RegistrySpec(
+    url="https://github.com/DarrylGamroth/PackageRegistry.git",
+))
 Pkg.add(url="https://github.com/DarrylGamroth/SpidersProper.jl.git")
 ```
 
