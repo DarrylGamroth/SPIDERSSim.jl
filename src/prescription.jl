@@ -278,7 +278,7 @@ function spiders_proper(
         obscuration_margin=config.lyot_obscuration_margin,
         spider_margin=config.lyot_spider_margin,
     )
-    config.coronagraph && prop_multiply(wf, lyot.mask)
+    config.coronagraph && prop_multiply(wf, lyot.amplitude_transmission)
 
     prop_propagate(wf, 55e-3, "Chopper")
     prop_propagate(wf, 133.16e-3 - 0.022e-3, "Lens 1")

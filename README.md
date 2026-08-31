@@ -51,6 +51,25 @@ result.aperture_throughput
 The `reference_pinhole` default is `false`, matching `phFlag = 0` in
 `spidersProper5.m`. Enable it for an SCC reference beam, as above.
 
+## Reflective Lyot stop
+
+`scc_lyot_stop` constructs both field-amplitude coefficients of the ideal,
+lossless reflective Lyot stop. `amplitude_transmission` feeds the SCC path;
+`amplitude_reflection` feeds the LLOWFS path. The corresponding centered
+complex fields can be obtained at the Lyot plane with
+`transmitted_lyot_field` and `reflected_lyot_field`. The coefficients conserve
+sample-wise optical power:
+
+```julia
+abs2.(stop.amplitude_transmission) .+ abs2.(stop.amplitude_reflection) .≈ 1
+```
+
+The original MATLAB display used `1 - mask` for the reflected intensity. The
+Julia model instead computes an amplitude-reflection coefficient, so the
+relation remains power conserving at antialiased mask boundaries. A measured
+coating efficiency or reflection-phase map is not yet available and is not
+invented here.
+
 The bundled FITS pupil and apodizer are used by default. An analytic Subaru
 pupil and the original radial-polynomial apodizer are also available:
 
@@ -124,8 +143,10 @@ therefore requires about 7.8 GiB for the output alone.
 - The bundled pupil/apodizer FITS maps replace the MATLAB default's missing
   `prop_subaruPupilSpiders` helper. Select `pupil_mode=:analytic` to use the
   ported geometric approximation.
-- The model remains monochromatic per call. It does not add the LLOWFS,
-  calibration-source, iFTS, coating, polarization, or optomechanical paths.
+- The model remains monochromatic per call. It includes the ideal reflective
+  Lyot-stop coefficients but does not yet add the LLOWFS relay,
+  calibration-source, iFTS, measured coating, polarization, or optomechanical
+  paths.
 - The detector helper retains the MATLAB model's simplified throughput and
   zero-point assumptions. For large Poisson means it uses the Gaussian limit.
 

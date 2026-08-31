@@ -17,6 +17,7 @@ export spiders_proper, spiders_proper5, spiders_movie
 export PreparedSpiders, prepare_spiders, spiders_propagate!
 export spiders_intensity, spiders_field
 export subaru_pupil!, radial_apodizer, tilt_gaussian_fpm, scc_lyot_stop
+export transmitted_lyot_field, reflected_lyot_field
 export psf_contrast, simulate_cred2, cdi_otf
 
 end

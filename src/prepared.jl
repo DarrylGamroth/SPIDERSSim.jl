@@ -263,7 +263,7 @@ function _prepare_lyot_internal(
         obscuration_margin=config.lyot_obscuration_margin,
         spider_margin=config.lyot_spider_margin,
     )
-    return _centered_to_internal(wf, lyot.mask)
+    return _centered_to_internal(wf, lyot.amplitude_transmission)
 end
 
 @inline function _prepared_lens_aperture!(

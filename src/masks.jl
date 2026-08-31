@@ -143,15 +143,28 @@ function tilt_gaussian_fpm(
 end
 
 """
-    LyotStop(mask, main_pupil_transmission, pinhole_transmission)
+    LyotStop(amplitude_transmission, amplitude_reflection,
+             main_pupil_transmission, pinhole_transmission)
 
-Contain the centered SCC Lyot mask and its incident-flux transmission metrics.
+Contain the centered amplitude coefficients of the SPIDERS reflective Lyot
+stop and its incident-flux transmission metrics. For the ideal lossless stop,
+the coefficients obey `abs2(amplitude_transmission) +
+abs2(amplitude_reflection) == 1` at every sample.
 """
 struct LyotStop{A<:AbstractMatrix,T<:Real}
-    mask::A
+    amplitude_transmission::A
+    amplitude_reflection::A
     main_pupil_transmission::T
     pinhole_transmission::T
 end
+
+"""Return the centered complex field transmitted by a [`LyotStop`](@ref)."""
+transmitted_lyot_field(wf::Proper.WaveFront, stop::LyotStop) =
+    centered_field(wf) .* stop.amplitude_transmission
+
+"""Return the centered complex field reflected by a [`LyotStop`](@ref)."""
+reflected_lyot_field(wf::Proper.WaveFront, stop::LyotStop) =
+    centered_field(wf) .* stop.amplitude_reflection
 
 """
     scc_lyot_stop(wf, pupil_diameter_m; kwargs...)
@@ -215,9 +228,12 @@ function scc_lyot_stop(
     intensity = abs2.(centered_field(wf))
     incident = sum(intensity)
     incident > 0 || throw(DomainError(incident, "Lyot plane has no incident flux"))
+    amplitude_transmission = clamp.(main .+ pinhole, 0, 1)
+    amplitude_reflection = sqrt.(max.(1 .- abs2.(amplitude_transmission), 0))
     return LyotStop(
-        main .+ pinhole,
-        sum(main .* intensity) / incident,
-        sum(pinhole .* intensity) / incident,
+        amplitude_transmission,
+        amplitude_reflection,
+        sum(abs2.(main) .* intensity) / incident,
+        sum(abs2.(pinhole) .* intensity) / incident,
     )
 end

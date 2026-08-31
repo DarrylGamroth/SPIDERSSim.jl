@@ -52,7 +52,17 @@ end
         pinhole_diameter_m=4.068e-3 / 20,
         obscuration_diameter_m=0.29 * 4.068e-3,
     )
-    @test size(lyot.mask) == (128, 128)
+    @test size(lyot.amplitude_transmission) == (128, 128)
+    @test size(lyot.amplitude_reflection) == (128, 128)
+    @test all(isapprox.(
+        abs2.(lyot.amplitude_transmission) .+ abs2.(lyot.amplitude_reflection),
+        1;
+        atol=eps(Float64),
+    ))
+    transmitted = transmitted_lyot_field(wf, lyot)
+    reflected = reflected_lyot_field(wf, lyot)
+    incident_power = sum(abs2, SpidersProper.centered_field(wf))
+    @test sum(abs2, transmitted) + sum(abs2, reflected) ≈ incident_power
     @test 0 < lyot.main_pupil_transmission < 1
     @test lyot.pinhole_transmission >= 0
 end
