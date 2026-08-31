@@ -18,7 +18,7 @@ repository as provenance and comparison references.
 
 ## Install
 
-Proper `v0.1.1` is available from `DarrylGamrothRegistry`. Until SpidersProper
+Proper `v0.2.0` is available from `DarrylGamrothRegistry`. Until SpidersProper
 itself is registered, add the registry and install this repository explicitly:
 
 ```julia
@@ -257,7 +257,7 @@ Manifest in this library package.
 
 Recommended release order:
 
-1. Use the registered `Proper v0.1.1`, which contains the prepared API.
+1. Use the registered `Proper v0.2.0`, which contains the prepared API.
 2. Tag `SpidersProper v0.1.0` and add it to `DarrylGamrothRegistry`.
 3. Add `SpidersProper` to `AdaptiveOpticsProperHIL.jl`, commit its Manifest,
    and validate the complete prepared propagation and detector path there.
