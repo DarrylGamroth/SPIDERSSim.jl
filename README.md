@@ -18,21 +18,16 @@ repository as provenance and comparison references.
 
 ## Install
 
-The prepared propagation path currently requires Proper commit
-`ec146b53ac39d56dc005795ae37176605c15cbe5`, which is newer than the registered
-`Proper v0.1.0`. Until a new Proper release and SpidersProper are registered,
-install both repositories explicitly:
+Proper `v0.1.1` is available from `DarrylGamrothRegistry`. Until SpidersProper
+itself is registered, add the registry and install this repository explicitly:
 
 ```julia
 using Pkg
-Pkg.activate(".")
-Pkg.develop(url="https://github.com/DarrylGamroth/Proper.jl.git",
-            rev="ec146b53ac39d56dc005795ae37176605c15cbe5")
-Pkg.develop(url="https://github.com/DarrylGamroth/SpidersProper.jl.git")
-Pkg.instantiate()
+Pkg.Registry.add(url="https://github.com/DarrylGamroth/PackageRegistry.git")
+Pkg.add(url="https://github.com/DarrylGamroth/SpidersProper.jl.git")
 ```
 
-For local development, replace either URL with `Pkg.develop(path=...)`.
+For local development, use `Pkg.develop(path=...)` instead.
 
 ## Run the prescription
 
@@ -260,8 +255,7 @@ Manifest in this library package.
 
 Recommended release order:
 
-1. Release and register a new `Proper.jl` version containing the prepared API.
-2. Update this package's Proper compatibility to that released version, tag
-   `SpidersProper v0.1.0`, and add it to `DarrylGamrothRegistry`.
+1. Use the registered `Proper v0.1.1`, which contains the prepared API.
+2. Tag `SpidersProper v0.1.0` and add it to `DarrylGamrothRegistry`.
 3. Add `SpidersProper` to `AdaptiveOpticsProperHIL.jl`, commit its Manifest,
    and validate the complete prepared propagation and detector path there.

@@ -21,13 +21,10 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
       - uses: julia-actions/cache@v2
-      - name: Pin the required Proper revision
+      - name: Add package registry and instantiate
         shell: julia --color=yes --project=. {0}
         run: |
           using Pkg
-          Pkg.develop(PackageSpec(
-              url="https://github.com/DarrylGamroth/Proper.jl.git",
-              rev="ec146b53ac39d56dc005795ae37176605c15cbe5",
-          ))
+          Pkg.Registry.add(url="https://github.com/DarrylGamroth/PackageRegistry.git")
           Pkg.instantiate()
       - uses: julia-actions/julia-runtest@v1
