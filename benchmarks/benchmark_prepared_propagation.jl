@@ -16,14 +16,16 @@ function benchmark_prepared(
     samples::Int,
     warmup::Int,
     ao_resolution::Int,
-)
-    residual_nm = zeros(Float32, ao_resolution, ao_resolution)
+    ::Type{T},
+) where {T<:AbstractFloat}
+    residual_nm = zeros(T, ao_resolution, ao_resolution)
     config = SpidersConfig(reference_pinhole=true)
     preparation = @timed prepare_spiders(
         1.25e-6,
         gridsize;
         config,
         ao_residual_nm=residual_nm,
+        T,
     )
     prepared = preparation.value
 
@@ -50,6 +52,7 @@ function benchmark_prepared(
     println("parameters:")
     println("  gridsize: ", gridsize)
     println("  ao_resolution: ", ao_resolution)
+    println("  precision: ", T)
     println("  warmup: ", warmup)
     println("  samples: ", samples)
     println("preparation:")
@@ -77,7 +80,10 @@ function main(args)
     samples = length(args) >= 2 ? parse(Int, args[2]) : 20
     warmup = length(args) >= 3 ? parse(Int, args[3]) : 3
     ao_resolution = length(args) >= 4 ? parse(Int, args[4]) : 128
-    benchmark_prepared(gridsize, samples, warmup, ao_resolution)
+    T = length(args) >= 5 ? getproperty(Base, Symbol(args[5])) : Float64
+    T in (Float32, Float64) || throw(ArgumentError(
+        "precision must be Float32 or Float64"))
+    benchmark_prepared(gridsize, samples, warmup, ao_resolution, T)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

@@ -154,9 +154,10 @@ function _centered_to_internal(wf::Proper.WaveFront, values::AbstractMatrix)
 end
 
 @inline function _prepared_intensity!(
-    output::StridedMatrix,
-    field::StridedMatrix{<:Complex},
-)
+    output::Matrix,
+    wf::Proper.WaveFront{T,F},
+) where {T,F<:Matrix}
+    field = wf.field
     ny, nx = size(field)
     size(output) == (ny, nx) || throw(DimensionMismatch(
         "prepared intensity output must match the wavefront grid"))
@@ -171,6 +172,9 @@ end
     end
     return output
 end
+
+@inline _prepared_intensity!(output::AbstractMatrix, wf::Proper.WaveFront) =
+    prop_end!(output, wf)
 
 function _prepare_apodizer_internal(
     wf::Proper.WaveFront,
@@ -478,7 +482,7 @@ function prepare_spiders(
 
     resample_scratch = Matrix{T}(undef, n, n)
     output = Matrix{T}(undef, n, n)
-    _prepared_intensity!(output, wf.field)
+    _prepared_intensity!(output, wf)
     prepared = PreparedSpiders(
         config,
         entrance,
@@ -592,7 +596,7 @@ function spiders_propagate!(prepared::PreparedSpiders)
         prepared.context,
         prepared.apertures.lens1,
     )
-    _prepared_intensity!(prepared.output, wf.field)
+    _prepared_intensity!(prepared.output, wf)
     return prepared.output
 end
 
