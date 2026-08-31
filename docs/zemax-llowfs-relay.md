@@ -228,6 +228,20 @@ generated and periodically checked by the high-fidelity PROPER model. Even a
 successful post-Lyot regrid is unlikely to make the complete Fresnel plant run
 at the requested rate.
 
+### Correctness-first operating decision
+
+On 2026-08-31, the user selected correctness over frame rate for the initial
+integration. The initial HIL path will therefore use the existing single-grid
+prepared propagation without a post-Lyot regrid. A 1024 grid is the current
+practical working reference; selected 2048 runs remain necessary to measure
+its error for the wavefront and DM-probe regimes used by the RTC. No real-time
+frame-rate claim follows from this choice.
+
+The two-grid method remains a later optimization. It will be introduced only
+as an explicit alternative after the qualification below, with the
+single-grid result retained as its comparison. This sequence avoids making
+interpolation error part of the initial optical-model validation.
+
 ## Qualification required before enabling resampling
 
 A candidate regrid must be compared with the single-grid 1024 and selected
@@ -249,10 +263,11 @@ response error can matter even when two normalized pupil images look alike.
 Numerical acceptance limits have not yet been agreed, so none are asserted
 here.
 
-## Assumptions to confirm
+## Confirmed assumptions
 
-These statements are deliberately challengeable because rejecting any of
-them changes the model or its deployment:
+The user confirmed all five statements on 2026-08-31. They remain listed
+because future instrument evidence may supersede them, and rejecting any one
+would change the model or its deployment:
 
 1. Configuration 5 (`LLOWFS main`), rather than configuration 6
    (`LLOWFS ref`), is the physical science path to simulate.
