@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version:
+          - '1.10'
+          - '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v2
+      - name: Pin the required Proper revision
+        shell: julia --color=yes --project=. {0}
+        run: |
+          using Pkg
+          Pkg.develop(PackageSpec(
+              url="https://github.com/DarrylGamroth/Proper.jl.git",
+              rev="ec146b53ac39d56dc005795ae37176605c15cbe5",
+          ))
+          Pkg.instantiate()
+      - uses: julia-actions/julia-runtest@v1
