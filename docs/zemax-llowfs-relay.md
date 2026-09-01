@@ -264,29 +264,34 @@ support a greater-than-1-kHz full-PROPER LLOWFS plant.
 ### CUDA Graph experiment
 
 The complete warmed propagation, including its cuFFT operations, was captured
-once with low-level `CUDA.capture`, instantiated once, and then launched
-repeatedly. Capture and instantiation remained outside the timed loop. This
+once with Proper 0.3's general `prepare_cuda_graph` facility and then launched
+repeatedly with `launch_cuda_graph!`. Capture and instantiation remained outside
+the timed loop. This
 reduced synchronized host allocation to 16 bytes per call; `CUDA.launch`
 itself added zero observed host bytes, and the remaining 16 bytes came from
 the benchmark's explicit synchronization.
 
-The production-like experiment used `ExternalSpidersEntrance`, the same
+The production-like experiments used `ExternalSpidersEntrance`, the same
 prepared-input form intended for HIL. After capture, the existing device OPD
-buffer was changed in place by 10 nm. The graph observed the new contents and
-agreed with a newly evaluated CPU reference to 2.96e-6 relative L2, confirming
-that capture did not freeze the input values.
+buffer was changed in place by 10 nm. Both graphs observed the new contents.
+The LLOWFS and SCC outputs agreed with newly evaluated CPU references to
+2.96e-6 and 5.14e-6 relative L2, respectively, confirming that capture did not
+freeze the input values.
 
-| Grid/input | Direct median | Graph median | Direct P95 | Graph P95 | Direct host bytes | Graph host bytes |
+| Prescription/grid/input | Direct median | Graph median | Direct P95 | Graph P95 | Direct host bytes | Graph host bytes |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 512 residual | 2.994--3.096 ms | 2.752 ms | 3.736--4.048 ms | 2.872 ms | 111,440 | 16 |
-| 1024 external OPD | 13.844--13.933 ms | 13.711 ms | 14.104--14.303 ms | 13.894 ms | 129,440 | 16 |
+| LLOWFS, 512 residual | 2.994--3.096 ms | 2.752 ms | 3.736--4.048 ms | 2.872 ms | 111,440 | 16 |
+| LLOWFS, 1024 external OPD | 14.307--14.368 ms | 14.141 ms | 14.544--14.926 ms | 14.409 ms | 129,440 | 16 |
+| SCC, 1024 external OPD | 13.713--13.737 ms | 13.587 ms | 13.915--14.056 ms | 13.749 ms | 125,648 | 16 |
 
 Each direct range brackets the graph phase with 100 samples per phase at 1024
 and 200 per phase at 512. At 1024, device FFT work dominates, so graph capture
-improved median latency by about one percent while eliminating almost all host
-allocation. At 512, launch overhead was more important: graph capture improved
-median latency by roughly 8--11 percent and mean throughput by roughly
-13--18 percent, with visibly tighter tails in this run.
+improved median latency by about one percent for both prescriptions while
+eliminating almost all host allocation. Their measured graph throughputs were
+70.6 LLOWFS frames/s and 73.6 SCC frames/s. At 512, launch overhead was more
+important: graph capture improved LLOWFS median latency by roughly 8--11
+percent and mean throughput by roughly 13--18 percent, with visibly tighter
+tails in that run.
 
 The graph is reusable only while the prepared model's array addresses, grid,
 FFT plans, control flow, and stream-compatible operations remain stable.
@@ -297,10 +302,12 @@ inside the experiment; a CPU-generated DM/OPD frame must still be copied into
 the stable device buffer, while a GPU-resident AdaptiveOpticsSim DM result can
 feed it directly.
 
-The HIL loop should use low-level capture/instantiate once and launch the
-stored executable graph. CUDA.jl's high-level `@captured` macro captures and
-updates a graph on each macro evaluation, which is convenient for changing
-operations but is not the desired fixed hot-path lifecycle here.
+Standalone SPIDERS and the HIL loop use the same Proper graph executor. It can
+capture the complete reflective Lyot `llowfs_propagate!` path or the complete
+transmissive Lyot `spiders_propagate!` path through the SCC focus. CUDA.jl's
+high-level `@captured` macro captures and updates a graph on each macro
+evaluation, which is convenient for changing operations but is not the
+desired fixed hot-path lifecycle here.
 
 Reproduce the allocation and graph experiments with:
 
@@ -308,6 +315,8 @@ Reproduce the allocation and graph experiments with:
 julia --project=. benchmarks/profile_cuda_prepared_llowfs.jl \
     1024 0.1141323837216534 external
 julia --project=. benchmarks/benchmark_cuda_graph_llowfs.jl \
+    1024 100 0.1141323837216534 external
+julia --project=. benchmarks/benchmark_cuda_graph_scc.jl \
     1024 100 0.1141323837216534 external
 ```
 
@@ -410,9 +419,9 @@ would change the model or its deployment:
 - CUDA timing has only been measured on one shared laptop GPU and has not been
   tested under sustained HIL load, fixed GPU power policy, or independent
   repetitions.
-- CUDA Graph capture has not yet been integrated into
-  AdaptiveOpticsProperHIL, tested with its scheduling/transfer boundary, or
-  exercised in a long-running loop with changing DM frames.
+- CUDA Graph capture has been integrated through Proper 0.3 and
+  AdaptiveOpticsProperHIL, and a changed in-place OPD buffer was verified. A
+  sustained HIL loop with changing live DM frames has not yet been exercised.
 - No two-grid regrid has yet been implemented or qualified.
 
 The Zemax-to-Julia implementation and its unit checks first appeared in Git

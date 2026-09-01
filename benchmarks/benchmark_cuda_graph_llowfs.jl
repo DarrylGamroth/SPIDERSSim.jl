@@ -48,33 +48,25 @@ function prepare_graph_fixture(
 end
 
 function capture_propagation(prepared)
-    graph = CUDA.capture() do
-        llowfs_propagate!(prepared)
-    end
-    executable = CUDA.instantiate(graph)
-    for _ in 1:10
-        CUDA.launch(executable)
-    end
-    CUDA.synchronize()
-    return graph, executable
+    return prepare_cuda_graph(llowfs_propagate!, prepared; warmup=10)
 end
 
-function measure_direct(prepared, samples::Int)
+function measure_direct(operation, prepared, samples::Int)
     latencies_ns = Vector{UInt64}(undef, samples)
     for index in eachindex(latencies_ns)
         started_ns = time_ns()
-        llowfs_propagate!(prepared)
+        operation(prepared)
         CUDA.synchronize()
         latencies_ns[index] = time_ns() - started_ns
     end
     return latencies_ns
 end
 
-function measure_graph(executable, samples::Int)
+function measure_graph(graph, samples::Int)
     latencies_ns = Vector{UInt64}(undef, samples)
     for index in eachindex(latencies_ns)
         started_ns = time_ns()
-        CUDA.launch(executable)
+        launch_cuda_graph!(graph)
         CUDA.synchronize()
         latencies_ns[index] = time_ns() - started_ns
     end
@@ -100,7 +92,7 @@ function relative_l2(device_output, cpu_output)
     return norm(gpu_output .- cpu_output) / norm(cpu_output)
 end
 
-function graph_correctness(cpu_prepared, prepared, executable)
+function graph_correctness(operation, cpu_prepared, prepared, graph)
     cpu_input, device_input, probe = if hasproperty(
         cpu_prepared.entrance,
         :opd_m,
@@ -115,18 +107,18 @@ function graph_correctness(cpu_prepared, prepared, executable)
     end
 
     fill!(cpu_input, 0f0)
-    flat_reference = copy(llowfs_propagate!(cpu_prepared))
+    flat_reference = copy(operation(cpu_prepared))
     fill!(device_input, 0f0)
-    CUDA.launch(executable)
+    launch_cuda_graph!(graph)
     CUDA.synchronize()
     flat_relative_l2 = relative_l2(prepared.output, flat_reference)
 
     # Change values in the existing input buffers without changing their pointers.
     # A reusable graph must observe this update on every launch.
     fill!(cpu_input, probe)
-    probe_reference = copy(llowfs_propagate!(cpu_prepared))
+    probe_reference = copy(operation(cpu_prepared))
     fill!(device_input, probe)
-    CUDA.launch(executable)
+    launch_cuda_graph!(graph)
     CUDA.synchronize()
     probe_relative_l2 = relative_l2(prepared.output, probe_reference)
 
@@ -147,24 +139,29 @@ function main(args)
         beam_diameter_fraction,
         input_mode,
     )
-    graph, executable = capture_propagation(prepared)
-    correctness = graph_correctness(cpu_prepared, prepared, executable)
+    graph = capture_propagation(prepared)
+    correctness = graph_correctness(
+        llowfs_propagate!,
+        cpu_prepared,
+        prepared,
+        graph,
+    )
 
     # Rewarm after the probe and bracket the graph samples with ordinary calls.
     for _ in 1:10
         llowfs_propagate!(prepared)
     end
     CUDA.synchronize()
-    direct_before = measure_direct(prepared, samples)
-    graph_latencies = measure_graph(executable, samples)
-    direct_after = measure_direct(prepared, samples)
+    direct_before = measure_direct(llowfs_propagate!, prepared, samples)
+    graph_latencies = measure_graph(graph, samples)
+    direct_after = measure_direct(llowfs_propagate!, prepared, samples)
 
     direct_host_bytes = @allocated begin
         llowfs_propagate!(prepared)
         CUDA.synchronize()
     end
     graph_host_bytes = @allocated begin
-        CUDA.launch(executable)
+        launch_cuda_graph!(graph)
         CUDA.synchronize()
     end
 
@@ -194,8 +191,7 @@ function main(args)
     println("raw_graph_ns: ", join(graph_latencies, ','))
     println("raw_direct_after_ns: ", join(direct_after, ','))
 
-    # Keep graph objects alive until all launches and reporting are complete.
-    GC.@preserve graph executable CUDA.synchronize()
+    GC.@preserve graph CUDA.synchronize()
     return nothing
 end
 
