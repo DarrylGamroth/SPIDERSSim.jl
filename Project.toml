@@ -17,11 +17,19 @@ Proper = {url = "https://github.com/DarrylGamroth/Proper.jl.git", rev = "f1aa417
 [compat]
 AdaptiveOpticsProperHIL = "0.1"
 AdaptiveOpticsSim = "0.1"
+FITSIO = "0.17"
 Proper = "0.4"
 julia = "1.12"
 
+[weakdeps]
+FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
+
+[extensions]
+SPIDERSSimFITSIOExt = "FITSIO"
+
 [extras]
+FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["FITSIO", "Test"]

@@ -2,6 +2,7 @@ using AdaptiveOpticsProperHIL
 using AdaptiveOpticsSim
 import AMDGPU
 import CUDA
+using FITSIO
 using SPIDERSSim
 
 using AdaptiveOpticsSim.AlgorithmGraphs
@@ -29,6 +30,10 @@ const STREAM_NAMES = (
 
 const HR_8799_H_MAGNITUDE = 5.280f0
 const SPIDERS_ATMOSPHERE_RNG_SEED = UInt64(0x4852_3837_3939)
+const SPIDERS_UNCOMPENSATED_PUPIL_OPD_SCHEMA =
+    "org.subaru.spiders.uncompensated-pupil-opd-m.f32/1"
+const SPIDERS_INFERRED_STATIC_OPD_SCHEMA =
+    "org.subaru.spiders.inferred-best-flat-static-opd-m.f32/1"
 
 function load_backend(name::Symbol)
     if name === :cpu
@@ -47,7 +52,7 @@ function load_backend(name::Symbol)
     throw(ArgumentError("backend must be cpu, amdgpu, or cuda"))
 end
 
-function device_copy(target, source::Matrix{T}) where {T}
+function device_copy(target, source::Array{T,N}) where {T,N}
     destination = Backends.allocate_device_array(target, T, size(source)...)
     copyto!(destination, source)
     return destination
@@ -57,14 +62,18 @@ end
 function graph_definition(
     llowfs_configuration,
     scc_configuration,
+    profile,
     pupil_amplitude,
+    calibration,
+    pdm_command,
+    inferred_static_opd,
+    dm_parameters,
     atmosphere_step,
 )
     pupil_resolution = llowfs_configuration.pupil_resolution
     pupil_resolution == scc_configuration.pupil_resolution ||
         error("LLOWFS and SCC pupil resolutions must match")
-    diameter_m = llowfs_configuration.diameter_m
-    diameter_m == scc_configuration.diameter_m ||
+    llowfs_configuration.diameter_m == scc_configuration.diameter_m ||
         error("LLOWFS and SCC telescope diameters must match")
     pupil_opd_schema = llowfs_configuration.pupil_opd_schema
     pupil_opd_schema == scc_configuration.pupil_opd_schema ||
@@ -72,7 +81,7 @@ function graph_definition(
     atmosphere = multilayer_atmosphere_opd_node(
         :atmosphere;
         resolution=pupil_resolution,
-        telescope_diameter_m=diameter_m,
+        telescope_diameter_m=profile.optics.subaru_pupil_diameter_m,
         central_obstruction_ratio=0.0f0,
         pupil_reflectivity=1.0f0,
         aperture_revision=1,
@@ -86,17 +95,51 @@ function graph_definition(
         layer_ids=(:ground, :two_km, :seven_km, :twelve_km),
         atmosphere_step,
         rng_seed=SPIDERS_ATMOSPHERE_RNG_SEED,
-        atmosphere_opd_schema=pupil_opd_schema,
+        atmosphere_opd_schema=SPIDERS_UNCOMPENSATED_PUPIL_OPD_SCHEMA,
+        T=Float32,
+    )
+    dm = bax307_deformable_mirror_node(
+        :bax307,
+        calibration;
+        pupil_diameter_m=profile.optics.dm_pupil_diameter_m,
+    )
+    static_composition = pupil_opd_composition_node(
+        :static_opd;
+        resolution=pupil_resolution,
+        uncompensated_opd_schema=SPIDERS_UNCOMPENSATED_PUPIL_OPD_SCHEMA,
+        surface_opd_schema=SPIDERS_INFERRED_STATIC_OPD_SCHEMA,
+        pupil_opd_schema=SPIDERS_UNCOMPENSATED_PUPIL_OPD_SCHEMA,
+        T=Float32,
+    )
+    composition = pupil_opd_composition_node(
+        :pupil_opd;
+        resolution=pupil_resolution,
+        uncompensated_opd_schema=SPIDERS_UNCOMPENSATED_PUPIL_OPD_SCHEMA,
+        surface_opd_schema=BAX307_SURFACE_OPD_SCHEMA,
+        pupil_opd_schema,
         T=Float32,
     )
     return algorithm_graph(
         (
             atmosphere,
+            dm,
+            static_composition,
+            composition,
             proper_propagation_node(:llowfs_optics, llowfs_configuration),
             proper_propagation_node(:scc_optics, scc_configuration),
         );
         name=:spiders_hr_8799_viewer,
         inputs=(
+            graph_input(
+                :bax307_command,
+                :bax307 => :pdm_command,
+                pdm_command,
+            ),
+            graph_input(
+                :inferred_static_opd,
+                :static_opd => :surface_opd,
+                inferred_static_opd,
+            ),
             graph_input(
                 :llowfs_pupil_amplitude,
                 :llowfs_optics => :pupil_amplitude,
@@ -114,6 +157,14 @@ function graph_definition(
                 :atmosphere => :atmosphere_opd,
             ),
             graph_output(
+                :dm_surface_opd,
+                :bax307 => :surface_opd,
+            ),
+            graph_output(
+                :pupil_opd,
+                :pupil_opd => :pupil_opd,
+            ),
+            graph_output(
                 :llowfs_relative_intensity,
                 :llowfs_optics => :output,
             ),
@@ -125,14 +176,51 @@ function graph_definition(
         links=(
             link(
                 :atmosphere => :atmosphere_opd,
+                :static_opd => :uncompensated_opd,
+            ),
+            link(
+                :static_opd => :pupil_opd,
+                :pupil_opd => :uncompensated_opd,
+            ),
+            link(
+                :bax307 => :surface_opd,
+                :pupil_opd => :surface_opd,
+            ),
+            link(
+                :pupil_opd => :pupil_opd,
                 :llowfs_optics => :pupil_opd,
             ),
             link(
-                :atmosphere => :atmosphere_opd,
+                :pupil_opd => :pupil_opd,
                 :scc_optics => :pupil_opd,
             ),
         ),
+        parameters=dm_parameters,
     )
+end
+
+function load_viewer_bax307(pupil_resolution::Int)
+    data_root = get(ENV, "SPIDERS_DATA_ROOT", "/mnt/datadrive/DATA")
+    influence_sample_unit_m = parse(
+        Float32,
+        get(ENV, "SPIDERS_BAX307_INFLUENCE_SAMPLE_UNIT_M", "1e-6"),
+    )
+    calibration = load_bax307_calibration(
+        data_root;
+        influence_sample_unit_m,
+        T=Float32,
+    )
+    size(calibration.influence_support) ==
+        (pupil_resolution, pupil_resolution) || error(
+        "BAX307 influence support $(size(calibration.influence_support)) " *
+        "does not match the viewer pupil resolution $pupil_resolution",
+    )
+    command = if get(ENV, "SPIDERS_BAX307_COMMAND", "bestflat") == "zero"
+        zeros(Float32, BAX307_ACTUATOR_COUNT)
+    else
+        load_bax307_best_flat(data_root; T=Float32)
+    end
+    return calibration, command, data_root, influence_sample_unit_m
 end
 
 """
@@ -211,12 +299,26 @@ function run_demo(
         profile,
         pupil_shape[1],
     )
+    calibration, pdm_command_host, data_root, influence_sample_unit_m =
+        load_viewer_bax307(pupil_shape[1])
     pupil_amplitude = device_copy(target, pupil_amplitude_host)
+    pdm_command = device_copy(target, pdm_command_host)
+    inferred_static_opd_host = -bax307_surface_opd(
+        calibration,
+        pdm_command_host,
+    )
+    inferred_static_opd = device_copy(target, inferred_static_opd_host)
+    dm_parameters = bax307_graph_parameters(:bax307, calibration, target)
     graph = prepare_algorithm_graph(
         graph_definition(
             llowfs_configuration,
             scc_configuration,
+            profile,
             pupil_amplitude,
+            calibration,
+            pdm_command,
+            inferred_static_opd,
+            dm_parameters,
             inv(Float32(frame_rate)),
         );
         target,
@@ -294,6 +396,16 @@ function run_demo(
             photon_irradiance(source),
             " photons s^-1 m^-2",
         )
+        println(
+            "BAX307 calibration ", data_root,
+            ", command ", get(ENV, "SPIDERS_BAX307_COMMAND", "bestflat"),
+            ", assumed influence sample unit ", influence_sample_unit_m,
+            " m surface (unqualified)",
+        )
+        println(
+            "the viewer balances that best-flat surface with an inferred " *
+            "equal-and-opposite static OPD; this is not a measured OAE map",
+        )
 
         started = time()
         next_frame = started
@@ -306,6 +418,10 @@ function run_demo(
             copyto!(
                 pupil_opd_host,
                 graph_output(graph, :atmosphere_opd),
+            )
+            copyto!(
+                dm_surface_opd,
+                graph_output(graph, :dm_surface_opd),
             )
             @. pupil_opd_host = ifelse(
                 iszero(pupil_amplitude_host),
