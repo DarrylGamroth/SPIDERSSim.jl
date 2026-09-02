@@ -270,14 +270,27 @@ function run_demo(
     backend_name::Symbol;
     duration::Real=120,
     frame_rate::Real=20,
+    propagation_resolution::Integer=512,
 )
     duration > 0 || throw(ArgumentError("duration must be positive"))
     frame_rate > 0 || throw(ArgumentError("frame_rate must be positive"))
+    propagation_resolution >= 512 && iseven(propagation_resolution) ||
+        throw(ArgumentError(
+            "propagation_resolution must be even and at least 512",
+        ))
 
     target = load_backend(backend_name)
     profile = provisional_spiders_h_regular_profile(Float32)
-    llowfs_configuration = provisional_spiders_llowfs_configuration(profile)
-    scc_configuration = provisional_spiders_chopped_scc_configuration(profile)
+    llowfs_configuration = provisional_spiders_llowfs_configuration(
+        profile;
+        resolution=propagation_resolution,
+        pupil_resolution=128,
+    )
+    scc_configuration = provisional_spiders_chopped_scc_configuration(
+        profile;
+        resolution=propagation_resolution,
+        pupil_resolution=128,
+    )
     source = Source(
         band=:H,
         magnitude=HR_8799_H_MAGNITUDE,
@@ -388,7 +401,10 @@ function run_demo(
             "target HR 8799, H magnitude ", HR_8799_H_MAGNITUDE,
             ", photon irradiance ",
             photon_irradiance(source),
-            " photons s^-1 m^-2",
+            " photons s^-1 m^-2, propagation grid ",
+            propagation_resolution,
+            "x",
+            propagation_resolution,
         )
         println(
             "BAX307 calibration ", data_root,
@@ -499,7 +515,8 @@ function main(args)
     backend = Symbol(isempty(args) ? "cpu" : args[1])
     duration = length(args) >= 2 ? parse(Float64, args[2]) : 120.0
     frame_rate = length(args) >= 3 ? parse(Float64, args[3]) : 20.0
-    run_demo(backend; duration, frame_rate)
+    propagation_resolution = length(args) >= 4 ? parse(Int, args[4]) : 512
+    run_demo(backend; duration, frame_rate, propagation_resolution)
     return nothing
 end
 

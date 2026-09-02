@@ -211,11 +211,14 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   512-to-1024 normalized-image residuals are about 9.5% LLOWFS and 6.9% SCC,
   falling to 7.6% and 4.2% from 1024 to 2048, and 5.2% and 2.7% from 2048 to
   4096. Flux ratios converge substantially faster. A temporary fork-at-Lyot
-  prototype produced exactly equal LLOWFS and SCC outputs to the
-  two-prescription implementation and reduced the measured Radeon 680M
-  two-arm optical step from about 45.7 ms to 28.1 ms at a 1024-pixel
-  propagation grid. This result must be reproduced by maintained package code
-  before it becomes qualification evidence.
+  prototype has now been replaced by the maintained
+  `provisional_spiders_optical_node`. Package tests establish bitwise CPU
+  equality with the two-prescription implementation for flat and changed OPD,
+  correct chopped-frame sequence/reset ownership, inferred stepping, and zero
+  warmed CPU allocation. The pyRTC viewer uses this shared node. At a
+  1024-pixel propagation grid, the retained shared-node p50 is 28.2 ms on the
+  Radeon 680M and 9.0 ms on the RTX 3050 Ti. Evolving-atmosphere convergence
+  and command-graph capture qualification remain.
 
 ## Open questions
 
@@ -259,5 +262,12 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   residual at focal propagation: 6.4% normalized complex-field residual for
   512 versus 1024 and 4.3% for 1024 versus 2048. Correcting detector output
   coordinates reduced the previously invalid order-unity detector comparison
-  to a monotone convergence sequence. Focused prescription tests pass 52/52
-  and now gate detector-sampling invariance across 512- and 1024-pixel grids.
+  to a monotone convergence sequence. Package tests pass 266/266 and now gate
+  detector-sampling invariance across 512- and 1024-pixel grids, exact shared-
+  branch parity, chopped-frame lifecycle, inference, and warmed CPU allocation.
+- 2026-09-02: retained 100-sample-by-three-repetition measurements show the
+  shared optical node reduces duplicated two-arm p50 by 29--38%. Shared p50 is
+  6.00/28.22/111.05 ms on Radeon 680M and 2.51/9.02/37.03 ms on RTX 3050 Ti
+  for 512/1024/2048 propagation grids, respectively. The chopped stream path
+  is not command-graph captured and still allocates host memory on GPU. Raw
+  samples and exact provenance are in `benchmark/results`.

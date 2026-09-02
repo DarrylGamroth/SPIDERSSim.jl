@@ -175,9 +175,13 @@ GitHub pyRTC package and viewer:
 julia --project=examples/pyrtc -e 'using Pkg; Pkg.instantiate()'
 PYRTC_PYTHON=/path/to/venv/bin/python \
   julia --project=examples/pyrtc \
-  examples/pyrtc/run_viewer_demo.jl amdgpu 120 20
+  examples/pyrtc/run_viewer_demo.jl amdgpu 120 20 512
 ```
 
-Use `cpu` or `cuda` in place of `amdgpu` as appropriate. This demonstration
-visualizes the provisional optical and camera-synchronous chopper products; it
-does not yet run the LLOWFS or SCC reconstruction and control processes.
+The final argument is the propagation-grid resolution; the external
+atmosphere and BAX307 pupil remain 128 by 128. Use 512 for the interactive HIL
+default, 1024 for higher-fidelity GPU work, or 2048 for selected convergence
+references. Use `cpu` or `cuda` in place of `amdgpu` as appropriate. This
+demonstration visualizes the provisional optical and camera-synchronous
+chopper products; it does not yet run the LLOWFS or SCC reconstruction and
+control processes.
