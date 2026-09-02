@@ -11,7 +11,7 @@ end
         PROVISIONAL_SPIDERS_CHOPPED_SCC_SCHEMA
     @test configuration.prescription.chopper.initial_phase === SpidersFringed
     @test length(spiders_prescription_claims(configuration)) == 5
-    @test length(spiders_configuration_claims(configuration)) == 13
+    @test length(spiders_configuration_claims(configuration)) == 14
     @test last(spiders_prescription_claims(configuration)).name ===
         :frame_synchronous_chopper
 

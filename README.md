@@ -51,11 +51,15 @@ recorded baseline and raw samples.
 
 ## Live pyRTC viewer
 
-The SPIDERS viewer demo publishes a synthetic moving low-order pupil OPD,
-GoldEye LLOWFS frame, current C-RED 2 SCC exposure, and adjacent
-fringed-minus-unfringed SCC product through pyRTC-compatible shared memory.
-Set `PYRTC_PYTHON` to the Python interpreter in an environment containing the
-GitHub pyRTC package and viewer:
+The SPIDERS viewer demo propagates a synthetic moving low-order pupil OPD
+through the provisional Subaru entrance pupil, including its central
+obscuration and four secondary-mirror supports. It publishes the real part of
+the entrance-pupil electric field, the GoldEye LLOWFS frame, the most recent
+unfringed C-RED 2 SCC science image, the paired fringed-minus-unfringed SCC
+product, and the current deformable-mirror surface OPD through pyRTC-compatible
+shared memory. The deformable-mirror surface remains exactly flat until command
+application is connected. Set `PYRTC_PYTHON` to the Python interpreter in an
+environment containing the GitHub pyRTC package and viewer:
 
 ```bash
 julia --project=examples/pyrtc -e 'using Pkg; Pkg.instantiate()'

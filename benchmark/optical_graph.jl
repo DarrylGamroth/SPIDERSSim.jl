@@ -126,7 +126,11 @@ function _prepare_graph(
 )
     pupil_shape = (configuration.pupil_resolution, configuration.pupil_resolution)
     pupil_opd_host = zeros(Float32, pupil_shape)
-    pupil_amplitude_host = ones(Float32, pupil_shape)
+    profile = configuration.prescription.profile
+    pupil_amplitude_host = provisional_spiders_entrance_pupil_amplitude(
+        profile,
+        pupil_shape[1],
+    )
     pupil_opd = _device_copy(target, pupil_opd_host)
     pupil_amplitude = _device_copy(target, pupil_amplitude_host)
     graph = prepare_algorithm_graph(

@@ -91,6 +91,90 @@ const _SPIDERS_WHEEL_SERIALS = (
     "TP02659529-22864",
 )
 
+const _SUBARU_ENTRANCE_PUPIL_OBSCURATION_RATIO = 0.29
+const _SUBARU_SPIDER_SLOPE_DEG = 51.5
+const _SUBARU_SPIDER_LOWER_INTERCEPT_RATIO = -30.7 / 273 * 2
+const _SUBARU_SPIDER_UPPER_INTERCEPT_RATIO = -22.3 / 273 * 2
+
+@inline function _inside_convex_quadrilateral(
+    x::T,
+    y::T,
+    polygon::NTuple{4,NTuple{2,T}},
+) where {T}
+    positive = false
+    negative = false
+    @inbounds for index in 1:4
+        next_index = index == 4 ? 1 : index + 1
+        x1, y1 = polygon[index]
+        x2, y2 = polygon[next_index]
+        cross = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1)
+        positive |= cross > zero(T)
+        negative |= cross < zero(T)
+    end
+    return !(positive && negative)
+end
+
+function _subaru_spider_polygons(::Type{T}; margin::T=one(T)) where {T}
+    margin >= one(T) || throw(ArgumentError(
+        "the Subaru spider margin must be at least one",
+    ))
+    slope = tand(T(_SUBARU_SPIDER_SLOPE_DEG))
+    lower = T(_SUBARU_SPIDER_LOWER_INTERCEPT_RATIO)
+    upper = T(_SUBARU_SPIDER_UPPER_INTERCEPT_RATIO)
+    half_growth = T(0.5) * abs(upper - lower) * (margin - one(T))
+    positive = (
+        (zero(T), lower - half_growth),
+        (zero(T), upper + half_growth),
+        (one(T), slope + upper + half_growth),
+        (one(T), slope + lower - half_growth),
+    )
+    reflected_y = map(point -> (point[1], -point[2]), positive)
+    reflected_xy = map(point -> (-point[1], -point[2]), positive)
+    reflected_x = map(point -> (-point[1], point[2]), positive)
+    return (positive, reflected_y, reflected_xy, reflected_x)
+end
+
+@inline function _inside_subaru_spider(x, y, polygons)
+    return _inside_convex_quadrilateral(x, y, polygons[1]) ||
+        _inside_convex_quadrilateral(x, y, polygons[2]) ||
+        _inside_convex_quadrilateral(x, y, polygons[3]) ||
+        _inside_convex_quadrilateral(x, y, polygons[4])
+end
+
+"""
+    provisional_spiders_entrance_pupil_amplitude(profile, resolution)
+
+Sample the provisional analytic Subaru entrance-pupil field amplitude. The
+binary aperture includes the 0.29-diameter central obscuration and the four
+secondary-mirror support polygons ported from the SPIDERS Proper reference.
+It is a cold construction product, not an as-built pupil-map qualification.
+"""
+function provisional_spiders_entrance_pupil_amplitude(
+    ::ProvisionalSpidersProfile{T},
+    resolution::Integer,
+) where {T}
+    n = Int(resolution)
+    n > 0 || throw(ArgumentError(
+        "the entrance-pupil resolution must be positive",
+    ))
+    center = T(n + 1) / T(2)
+    scale = T(n) / T(2)
+    obscuration = T(_SUBARU_ENTRANCE_PUPIL_OBSCURATION_RATIO)
+    polygons = _subaru_spider_polygons(T)
+    amplitude = zeros(T, n, n)
+    @inbounds for column in axes(amplitude, 2)
+        x = (T(column) - center) / scale
+        for row in axes(amplitude, 1)
+            y = (T(row) - center) / scale
+            radius = hypot(x, y)
+            admitted = obscuration <= radius <= one(T) &&
+                !_inside_subaru_spider(x, y, polygons)
+            amplitude[row, column] = admitted ? one(T) : zero(T)
+        end
+    end
+    return amplitude
+end
+
 function _spiders_h_filter(::Type{T}, wheel::Integer) where {
     T<:Union{Float32,Float64}
 }
@@ -279,6 +363,17 @@ function spiders_profile_claims(profile::ProvisionalSpidersProfile)
             "as-built complex transmission map was found",
             "Provide the as-built tilt-Gaussian-vortex amplitude/phase map, " *
             "orientation, and registration.",
+        ),
+        SpidersProfileClaim(
+            :entrance_pupil_map,
+            SpidersInferred,
+            "analytic Subaru 0.29-diameter central obscuration and four " *
+            "secondary-mirror support polygons",
+            "spidersProperPackage/src/masks.jl ports the SPIDERS Proper " *
+            "analytic pupil; the package also contains the independent " *
+            "pupilsbr_nPup1200_kpdiam100_kodiam100_kthick100.fits map",
+            "Qualify the analytic pupil against the selected as-built pupil " *
+            "map, including sampling, orientation, and registration.",
         ),
         SpidersProfileClaim(
             :apodizer_map,

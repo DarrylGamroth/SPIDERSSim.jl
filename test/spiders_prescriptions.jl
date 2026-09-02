@@ -55,7 +55,7 @@ end
     @test scc_configuration.output_schema == PROVISIONAL_SPIDERS_SCC_SCHEMA
     @test length(spiders_prescription_claims(llowfs_configuration)) == 4
     @test length(spiders_prescription_claims(scc_configuration)) == 4
-    @test length(spiders_configuration_claims(llowfs_configuration)) == 12
+    @test length(spiders_configuration_claims(llowfs_configuration)) == 13
     @test all(
         claim -> claim.evidence === SpidersPlaceholder,
         spiders_prescription_claims(llowfs_configuration),

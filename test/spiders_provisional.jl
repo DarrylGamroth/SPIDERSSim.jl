@@ -29,7 +29,7 @@
     @test optics.camera_rotation_deg === 31f0
 
     claims = spiders_profile_claims(profile)
-    @test length(claims) == 8
+    @test length(claims) == 9
     @test all(claim -> !isempty(claim.current_choice), claims)
     @test all(claim -> !isempty(claim.source), claims)
     @test all(claim -> !isempty(claim.qualification_question), claims)
@@ -40,6 +40,7 @@
         :scc_selector_state,
         :reference_pinhole,
         :focal_plane_mask_map,
+        :entrance_pupil_map,
         :apodizer_map,
         :detector_mapping,
     ))
@@ -58,6 +59,32 @@
     @test detector_claim.evidence === SpidersDeploymentConfigured
     @test occursin("GoldEye", detector_claim.current_choice)
     @test occursin("C-RED 2", detector_claim.current_choice)
+
+    entrance_pupil = provisional_spiders_entrance_pupil_amplitude(
+        profile,
+        128,
+    )
+    @test size(entrance_pupil) == (128, 128)
+    @test eltype(entrance_pupil) === Float32
+    @test Set(entrance_pupil) == Set((0.0f0, 1.0f0))
+    @test entrance_pupil == reverse(entrance_pupil; dims=(1, 2))
+    @test iszero(entrance_pupil[64, 64])
+    @test iszero(entrance_pupil[1, 1])
+    @test sum(entrance_pupil) > 0
+    annular_count = count(
+        CartesianIndices(entrance_pupil),
+    ) do index
+        row, column = Tuple(index)
+        x = (Float32(column) - 64.5f0) / 64.0f0
+        y = (Float32(row) - 64.5f0) / 64.0f0
+        radius = hypot(x, y)
+        0.29f0 <= radius <= 1.0f0
+    end
+    @test count(!iszero, entrance_pupil) < annular_count
+    @test_throws ArgumentError provisional_spiders_entrance_pupil_amplitude(
+        profile,
+        0,
+    )
 
     reversed = provisional_spiders_h_regular_profile(
         Float64;

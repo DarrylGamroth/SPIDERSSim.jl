@@ -19,10 +19,11 @@ include(joinpath(
 using .PyRTCSharedMemory
 
 const STREAM_NAMES = (
-    "spidersPupilOpd",
+    "spidersPupilFieldReal",
     "spidersLlowfs",
-    "spidersSccFrame",
+    "spidersSccUnfringed",
     "spidersSccDifference",
+    "spidersDmSurfaceOpd",
 )
 
 function load_backend(name::Symbol)
@@ -130,9 +131,14 @@ function run_demo(
         llowfs_configuration.pupil_resolution,
     )
     pupil_opd_host = zeros(Float32, pupil_shape)
-    pupil_amplitude_host = ones(Float32, pupil_shape)
+    pupil_amplitude_host = provisional_spiders_entrance_pupil_amplitude(
+        profile,
+        pupil_shape[1],
+    )
     pupil_opd = device_copy(target, pupil_opd_host)
     pupil_amplitude = device_copy(target, pupil_amplitude_host)
+    pupil_field_real = zeros(Float32, pupil_shape)
+    phase_per_opd = Float32(2pi / (profile.wavelength_um * 1f-6))
     llowfs_graph = prepare_algorithm_graph(
         graph_definition(
             llowfs_configuration,
@@ -156,38 +162,48 @@ function run_demo(
 
     llowfs = zeros(Float32, profile.llowfs_output_shape)
     scc_frame = zeros(Float32, profile.scc_output_shape)
-    scc_fringed = similar(scc_frame)
-    scc_unfringed = similar(scc_frame)
-    scc_difference = zeros(Float32, profile.scc_output_shape)
-    have_fringed = false
-    have_unfringed = false
-    pupil_stream = nothing
+    pair_plan, pair_state, pair_products = prepare_scc_pairing(
+        Float32;
+        frame_shape=profile.scc_output_shape,
+    )
+    dm_surface_opd = zeros(Float32, pupil_shape)
+    pupil_field_stream = nothing
     llowfs_stream = nothing
-    scc_stream = nothing
-    difference_stream = nothing
+    scc_unfringed_stream = nothing
+    scc_difference_stream = nothing
+    dm_surface_opd_stream = nothing
     viewer = nothing
     try
-        pupil_stream = create_stream(STREAM_NAMES[1], Float32, pupil_shape)
+        pupil_field_stream = create_stream(
+            STREAM_NAMES[1],
+            Float32,
+            pupil_shape,
+        )
         llowfs_stream = create_stream(
             STREAM_NAMES[2],
             Float32,
             profile.llowfs_output_shape,
         )
-        scc_stream = create_stream(
+        scc_unfringed_stream = create_stream(
             STREAM_NAMES[3],
             Float32,
             profile.scc_output_shape,
         )
-        difference_stream = create_stream(
+        scc_difference_stream = create_stream(
             STREAM_NAMES[4],
             Float32,
             profile.scc_output_shape,
+        )
+        dm_surface_opd_stream = create_stream(
+            STREAM_NAMES[5],
+            Float32,
+            pupil_shape,
         )
         command = Cmd(String[
             viewer_executable(),
             STREAM_NAMES...,
             "--geometry",
-            "2x2",
+            "2x3",
             "--fps",
             string(max(1, floor(Int, frame_rate / 2))),
             "--pixel-scale",
@@ -207,6 +223,8 @@ function run_demo(
         while time() - started < duration && process_running(viewer)
             frame += 1
             moving_opd!(pupil_opd_host, frame)
+            @. pupil_field_real = pupil_amplitude_host *
+                cos(phase_per_opd * pupil_opd_host)
             copyto!(pupil_opd, pupil_opd_host)
             step_graph!(llowfs_graph)
             step_graph!(scc_graph)
@@ -215,30 +233,35 @@ function run_demo(
 
             status = spiders_chopper_frame_status(scc_graph)
             phase = spiders_chopper_phase(status)
+            accept_scc_frame!(
+                pair_products,
+                pair_state,
+                pair_plan,
+                scc_frame,
+                spiders_chopper_sequence(status),
+                phase,
+            )
             if phase === SpidersFringed
                 fringed_count += 1
-                copyto!(scc_fringed, scc_frame)
-                have_fringed = true
             else
                 unfringed_count += 1
-                copyto!(scc_unfringed, scc_frame)
-                have_unfringed = true
-            end
-            if have_fringed && have_unfringed
-                @. scc_difference = scc_fringed - scc_unfringed
             end
 
-            publish!(pupil_stream, pupil_opd_host)
+            publish!(pupil_field_stream, pupil_field_real)
             publish!(llowfs_stream, llowfs)
-            publish!(scc_stream, scc_frame)
-            publish!(difference_stream, scc_difference)
+            pair_state.have_unfringed &&
+                publish!(scc_unfringed_stream, pair_state.unfringed)
+            pair_products.valid &&
+                publish!(scc_difference_stream, pair_products.difference)
+            publish!(dm_surface_opd_stream, dm_surface_opd)
 
             if frame == 1 || frame % max(1, round(Int, frame_rate)) == 0
                 println(
                     "frame ", frame,
                     ", SCC phase ", phase,
                     ", LLOWFS range ", extrema(llowfs),
-                    ", SCC difference range ", extrema(scc_difference),
+                    ", unfringed SCC range ", extrema(pair_state.unfringed),
+                    ", SCC difference range ", extrema(pair_products.difference),
                 )
             end
             next_frame += inv(Float64(frame_rate))
@@ -254,10 +277,11 @@ function run_demo(
             kill(viewer)
             wait(viewer)
         end
-        close_stream_noexcept!(difference_stream)
-        close_stream_noexcept!(scc_stream)
+        close_stream_noexcept!(dm_surface_opd_stream)
+        close_stream_noexcept!(scc_difference_stream)
+        close_stream_noexcept!(scc_unfringed_stream)
         close_stream_noexcept!(llowfs_stream)
-        close_stream_noexcept!(pupil_stream)
+        close_stream_noexcept!(pupil_field_stream)
     end
     return nothing
 end
