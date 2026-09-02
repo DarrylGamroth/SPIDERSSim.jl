@@ -11,8 +11,10 @@ deterministic evidence.
 
 ## Data and provenance
 
-- `~/workspaces/spidersProperPackage`: Julia/MATLAB Proper prescriptions,
-  Zemax-derived relay notes, masks, and optical-development fixtures.
+- Archived `SpidersProper.jl` revision
+  `09d92f5fd74d4b77869c7f430a06b3e077795691`: source provenance for the
+  incorporated Julia/MATLAB Proper prescriptions, Zemax-derived relay notes,
+  masks, and optical-development fixtures.
 - `~/workspaces/codex/spiders` (also `RTC_planning/spiders`): deployed legacy
   LLOWFS, SCC, chopped-frame sorting, calibration, integrator, and DM-mixer
   behavior. These repositories are requirements/parity references, not code to
@@ -36,8 +38,9 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   AdaptiveOpticsSim algorithm graphs; optional Python pyRTC integration in an
   isolated test environment.
 - Maturity: reusable package with explicitly provisional optical profiles.
-- Existing packages: AdaptiveOpticsSim.jl, AdaptiveOpticsProperHIL.jl,
-  Proper.jl, and SpidersProper.jl.
+- Existing packages: AdaptiveOpticsSim.jl, AdaptiveOpticsProperHIL.jl, and
+  Proper.jl. The former SpidersProper implementation is owned by
+  `SPIDERSSim.ProperOptics`.
 
 ## Working stance
 
@@ -83,6 +86,12 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   running flux. The simulation already knows the commanded chopper phase and
   should publish it explicitly; parity/flux inference is a deployment-compatibility
   adapter, not the canonical model.
+- 2026-09-02: the detailed transmissive-Lyot SCC and reflected-Lyot LLOWFS
+  prepared propagation paths were incorporated from SpidersProper revision
+  `09d92f5`. For the analytic pupil/apodizer fixture, both SPIDERSSim outputs
+  are bitwise identical to that source revision. The generic graph path remains
+  the explicitly provisional prescription until the detailed propagation is
+  adapted and qualified on CPU, CUDA, and AMDGPU.
 
 ## Chunks
 
@@ -98,13 +107,17 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   `AdaptiveOpticsProperHIL.jl@c812ae5`.
 
 ### SP-002: Reconcile optical artifacts
-- Description: Compare the provisional LLOWFS/SCC outputs with SpidersProper,
+- Description: Compare the provisional LLOWFS/SCC outputs with the incorporated
+  detailed Proper propagation,
   Zemax notes, SpiderMan settings, and private calibration-product metadata.
 - Depends on: SP-001
 - Verification: deterministic inspection script plus recorded shapes,
   checksums, assumptions, and residual images.
-- Status: not-started
-- Notes: do not commit private observatory data.
+- Status: in-progress
+- Notes: the prepared SCC and LLOWFS source migration has exact analytic-fixture
+  parity with archived SpidersProper revision `09d92f5`. Detailed-versus-
+  provisional graph comparisons and private-artifact qualification remain. Do
+  not commit private observatory data.
 
 ### SP-003: Define detector and chopper products
 - Description: Model GoldEye/LLOWFS and C-RED 2/SCC acquisition boundaries,

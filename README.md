@@ -28,6 +28,62 @@ publishes a rolling fringed-minus-unfringed product only when the two retained
 phases are adjacent in sequence. A dropped frame invalidates the product until
 the next adjacent pair, so stale images cannot silently cross a gap.
 
+## Detailed Proper optical propagation
+
+`SPIDERSSim.ProperOptics` owns the detailed monochromatic prescription ported
+from the former `SpidersProper.jl` package. Both optical branches have prepared
+single-writer execution owners:
+
+```julia
+using SPIDERSSim
+using SPIDERSSim.ProperOptics
+
+pupil_amplitude = ones(Float32, 128, 128)
+pupil_opd = zeros(Float32, 128, 128) # metres
+configuration = SCCPropagationConfiguration(reference_pinhole=true)
+
+scc = prepare_scc_propagation(
+    1.55e-6,
+    512;
+    configuration,
+    pupil_amplitude,
+    pupil_sampling_m=configuration.telescope_diameter_m / 128,
+    opd_m=pupil_opd,
+    T=Float32,
+)
+llowfs = prepare_llowfs_propagation(
+    1.55e-6,
+    512;
+    configuration,
+    pupil_amplitude,
+    pupil_sampling_m=configuration.telescope_diameter_m / 128,
+    opd_m=pupil_opd,
+    T=Float32,
+)
+
+scc_intensity = propagate_scc!(scc)
+llowfs_intensity = propagate_llowfs!(llowfs)
+```
+
+The SCC path follows the transmissive Lyot branch to the C-RED 2 focal plane.
+The LLOWFS path uses the complementary reflected coefficient and the recovered
+configuration-5 Zemax relay to the GoldEye sensor plane. Preparation binds the
+input arrays, Proper contexts, masks, FFT workspaces, and output arrays; warmed
+CPU propagation allocates no Julia heap memory.
+The recovered relay prescription and remaining qualification boundary are
+documented in [`docs/zemax-llowfs-relay.md`](docs/zemax-llowfs-relay.md).
+
+These optical routines are distinct from the root `prepare_scc` and
+`prepare_llowfs` routines, which prepare RTC reconstruction calibrations. The
+existing `provisional_spiders_*_configuration` functions remain the portable
+CPU/GPU graph prescriptions until the detailed physical train is adapted to
+the generic Proper graph-node interface and qualified on both GPU backends.
+
+The analytic Subaru pupil and polynomial apodizer are the self-contained
+defaults. FITS pupil, apodizer, focal-plane-mask, AO-residual, and measured OAE
+products must be supplied through explicit paths; they are not embedded in the
+package source.
+
 ## BAX307 measured deformable mirror
 
 The instrument package validates the ALPAO BAX307 command map, actuator-health
