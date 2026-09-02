@@ -26,6 +26,12 @@ SHA-256: 29ef0fe4fdb7a60931648700115b5fce3690604dadb4f9658a680b8957977666
 ```
 
 The archive remains untracked because it may contain private instrument data.
+The maintained local evidence copy is:
+
+```text
+/mnt/datadrive/DATA/SPIDERS/provenance/SubaruPathFinderV11-oae-dm-beam-comp-f64-apo12-planar-customLens-coldStop-rightlocation-filter-narcisist-aperture.ZAR
+```
+
 The prescription, catalog coefficients, derived values, and their provenance
 are documented here so the implementation can be reviewed without publishing
 the archive.
