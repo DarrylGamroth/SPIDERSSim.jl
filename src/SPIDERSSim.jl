@@ -102,6 +102,9 @@ export BAX307CalibrationPlan,
     bax307_deformable_mirror_node,
     bax307_graph_parameters
 
+export ProperOptics
+
+include("proper_optics/ProperOptics.jl")
 include("spiders_provisional.jl")
 include("bax307.jl")
 include("spiders_prescriptions.jl")
