@@ -37,6 +37,49 @@ function _spiders_test_graph(configuration, pupil_opd, pupil_amplitude)
     )
 end
 
+function _shared_spiders_graph(
+    llowfs_configuration,
+    scc_configuration,
+    pupil_opd,
+    pupil_amplitude,
+)
+    return prepare_algorithm_graph(
+        algorithm_graph(
+            (
+                provisional_spiders_optical_node(
+                    :spiders_optics,
+                    llowfs_configuration,
+                    scc_configuration,
+                ),
+            );
+            name=:shared_spiders_test,
+            inputs=(
+                graph_input(
+                    :pupil_opd,
+                    :spiders_optics => :pupil_opd,
+                    pupil_opd,
+                ),
+                graph_input(
+                    :pupil_amplitude,
+                    :spiders_optics => :pupil_amplitude,
+                    pupil_amplitude,
+                ),
+            ),
+            outputs=(
+                graph_output(
+                    :llowfs_intensity,
+                    :spiders_optics => :llowfs_output,
+                ),
+                graph_output(
+                    :scc_intensity,
+                    :spiders_optics => :scc_output,
+                ),
+            ),
+        );
+        target=AdaptiveOpticsSim.Backends.HostComputeDevice(),
+    )
+end
+
 function _spiders_resolution_comparison(
     low_configuration,
     high_configuration,
@@ -130,6 +173,24 @@ end
     @test sum(llowfs_reference) > 0
     @test sum(scc_reference) > 0
 
+    shared_graph = _shared_spiders_graph(
+        llowfs_configuration,
+        scc_configuration,
+        pupil_opd,
+        pupil_amplitude,
+    )
+    @test step_graph!(shared_graph) === shared_graph
+    @test graph_output(shared_graph, :llowfs_intensity) == llowfs_reference
+    @test graph_output(shared_graph, :scc_intensity) == scc_reference
+    shared_owner = AlgorithmGraphs.prepared_graph_node(
+        shared_graph,
+        :spiders_optics,
+    )
+    @test AlgorithmGraphs.graph_node_capture_capability(shared_owner) isa
+        AlgorithmGraphs.GraphNodeCaptureUnsupported
+    @test @allocated(step_graph!(shared_graph)) == 0
+    @test @inferred(step_graph!(shared_graph)) === shared_graph
+
     pupil_amplitude_convergence =
         provisional_spiders_entrance_pupil_amplitude(profile, 128)
     llowfs_convergence = _spiders_resolution_comparison(
@@ -166,6 +227,11 @@ end
         llowfs_reference) > 1f-4
     @test maximum(abs, graph_output(scc_graph, :intensity) .-
         scc_reference) > 1f-4
+    @test step_graph!(shared_graph) === shared_graph
+    @test graph_output(shared_graph, :llowfs_intensity) ==
+        graph_output(llowfs_graph, :intensity)
+    @test graph_output(shared_graph, :scc_intensity) ==
+        graph_output(scc_graph, :intensity)
     @test @allocated(step_graph!(llowfs_graph)) == 0
     @test @allocated(step_graph!(scc_graph)) == 0
     @test @inferred(step_graph!(llowfs_graph)) === llowfs_graph
@@ -216,5 +282,10 @@ end
     @test_throws ArgumentError provisional_spiders_scc_configuration(
         profile;
         beam_diameter_fraction=0.5,
+    )
+    @test_throws ArgumentError provisional_spiders_optical_node(
+        :mismatched_optics,
+        llowfs_configuration,
+        provisional_spiders_scc_configuration(profile; resolution=1024),
     )
 end

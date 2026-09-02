@@ -647,7 +647,7 @@ end
     run_context,
 )
 
-function _run_provisional_spiders_prescription(
+function _spiders_propagate_to_lyot!(
     prescription,
     wavelength_m,
     resolution;
@@ -656,18 +656,12 @@ function _run_provisional_spiders_prescription(
     diameter_m,
     field,
     wavefront,
-    output,
     run_context,
     apodizer_mask,
     focal_plane_mask_internal,
-    lyot_mask,
     padded_pupil_opd,
     padded_pupil_amplitude,
-    square_intensity,
-    rotated_intensity,
-    centered_field,
     pupil_resample_context,
-    detector_resample_context,
 )
     size(field) == (resolution, resolution) || throw(DimensionMismatch(
         "SPIDERS field binding changed after preparation",
@@ -732,6 +726,22 @@ function _run_provisional_spiders_prescription(
         run_context,
         "SPIDERS Lyot stop",
     )
+    return pupil_magnification
+end
+
+function _spiders_propagate_from_lyot!(
+    prescription,
+    pupil_magnification,
+    wavefront;
+    output,
+    run_context,
+    lyot_mask,
+    square_intensity,
+    rotated_intensity,
+    centered_field,
+    detector_resample_context,
+)
+    parameters = prescription.parameters
     Proper.prop_multiply(wavefront, lyot_mask)
     _spiders_camera_plane!(prescription, wavefront, run_context)
 
@@ -753,6 +763,58 @@ function _run_provisional_spiders_prescription(
         detector_resample_context,
     )
     return output, sampling_m / detector_magnification
+end
+
+function _run_provisional_spiders_prescription(
+    prescription,
+    wavelength_m,
+    resolution;
+    pupil_opd,
+    pupil_amplitude,
+    diameter_m,
+    field,
+    wavefront,
+    output,
+    run_context,
+    apodizer_mask,
+    focal_plane_mask_internal,
+    lyot_mask,
+    padded_pupil_opd,
+    padded_pupil_amplitude,
+    square_intensity,
+    rotated_intensity,
+    centered_field,
+    pupil_resample_context,
+    detector_resample_context,
+)
+    pupil_magnification = _spiders_propagate_to_lyot!(
+        prescription,
+        wavelength_m,
+        resolution;
+        pupil_opd,
+        pupil_amplitude,
+        diameter_m,
+        field,
+        wavefront,
+        run_context,
+        apodizer_mask,
+        focal_plane_mask_internal,
+        padded_pupil_opd,
+        padded_pupil_amplitude,
+        pupil_resample_context,
+    )
+    return _spiders_propagate_from_lyot!(
+        prescription,
+        pupil_magnification,
+        wavefront;
+        output,
+        run_context,
+        lyot_mask,
+        square_intensity,
+        rotated_intensity,
+        centered_field,
+        detector_resample_context,
+    )
 end
 
 function (prescription::ProvisionalSpidersLLOWFSPrescription)(

@@ -81,6 +81,43 @@ end
     )
     @test graph_output(chopped_graph, :intensity) == fringed
 
+    shared_chopped_graph = _shared_spiders_graph(
+        provisional_spiders_llowfs_configuration(profile),
+        configuration,
+        pupil_opd,
+        pupil_amplitude,
+    )
+    @test step_graph!(shared_chopped_graph) === shared_chopped_graph
+    @test spiders_chopper_frame_status(
+        shared_chopped_graph,
+        Val(:spiders_optics),
+    ) == SpidersChopperFrameStatus(UInt64(1), SpidersFringed)
+    @test graph_output(shared_chopped_graph, :scc_intensity) == fringed
+    @test step_graph!(shared_chopped_graph) === shared_chopped_graph
+    @test spiders_chopper_frame_status(
+        shared_chopped_graph,
+        Val(:spiders_optics),
+    ) == SpidersChopperFrameStatus(UInt64(2), SpidersUnfringed)
+    @test graph_output(shared_chopped_graph, :scc_intensity) == unfringed
+    shared_chopped_owner = AlgorithmGraphs.prepared_graph_node(
+        shared_chopped_graph,
+        :spiders_optics,
+    )
+    @test AlgorithmGraphs.graph_node_capture_capability(
+        shared_chopped_owner,
+    ) isa AlgorithmGraphs.GraphNodeCaptureUnsupported
+    @test @allocated(step_graph!(shared_chopped_graph)) == 0
+    @test reset_graph!(shared_chopped_graph) === shared_chopped_graph
+    @test_throws ArgumentError spiders_chopper_frame_status(
+        shared_chopped_graph,
+        Val(:spiders_optics),
+    )
+    @test step_graph!(shared_chopped_graph) === shared_chopped_graph
+    @test spiders_chopper_frame_status(
+        shared_chopped_graph,
+        Val(:spiders_optics),
+    ) == SpidersChopperFrameStatus(UInt64(1), SpidersFringed)
+
     reset_graph!(chopped_graph)
     driver = FixedStepModelTimeDriver(
         AlgorithmGraphs.PeriodicSchedule(period_ns=1_000_000),

@@ -68,6 +68,7 @@ export SpidersEvidenceLevel,
     provisional_spiders_llowfs_configuration,
     provisional_spiders_scc_configuration,
     provisional_spiders_chopped_scc_configuration,
+    provisional_spiders_optical_node,
     spiders_chopper_frame_status,
     spiders_chopper_sequence,
     spiders_chopper_phase,
@@ -109,6 +110,7 @@ include("spiders_provisional.jl")
 include("bax307.jl")
 include("spiders_prescriptions.jl")
 include("spiders_chopper.jl")
+include("shared_optical_node.jl")
 include("scc_pairing.jl")
 include("reconstructors.jl")
 

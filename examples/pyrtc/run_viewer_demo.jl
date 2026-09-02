@@ -125,8 +125,11 @@ function graph_definition(
             dm,
             static_composition,
             composition,
-            proper_propagation_node(:llowfs_optics, llowfs_configuration),
-            proper_propagation_node(:scc_optics, scc_configuration),
+            provisional_spiders_optical_node(
+                :spiders_optics,
+                llowfs_configuration,
+                scc_configuration,
+            ),
         );
         name=:spiders_hr_8799_viewer,
         inputs=(
@@ -141,13 +144,8 @@ function graph_definition(
                 inferred_static_opd,
             ),
             graph_input(
-                :llowfs_pupil_amplitude,
-                :llowfs_optics => :pupil_amplitude,
-                pupil_amplitude,
-            ),
-            graph_input(
-                :scc_pupil_amplitude,
-                :scc_optics => :pupil_amplitude,
+                :pupil_amplitude,
+                :spiders_optics => :pupil_amplitude,
                 pupil_amplitude,
             ),
         ),
@@ -166,11 +164,11 @@ function graph_definition(
             ),
             graph_output(
                 :llowfs_relative_intensity,
-                :llowfs_optics => :output,
+                :spiders_optics => :llowfs_output,
             ),
             graph_output(
                 :scc_relative_intensity,
-                :scc_optics => :output,
+                :spiders_optics => :scc_output,
             ),
         ),
         links=(
@@ -188,11 +186,7 @@ function graph_definition(
             ),
             link(
                 :pupil_opd => :pupil_opd,
-                :llowfs_optics => :pupil_opd,
-            ),
-            link(
-                :pupil_opd => :pupil_opd,
-                :scc_optics => :pupil_opd,
+                :spiders_optics => :pupil_opd,
             ),
         ),
         parameters=dm_parameters,
@@ -445,7 +439,7 @@ function run_demo(
                 0.0f0,
             )
 
-            status = spiders_chopper_frame_status(graph, Val(:scc_optics))
+            status = spiders_chopper_frame_status(graph, Val(:spiders_optics))
             phase = spiders_chopper_phase(status)
             accept_scc_frame!(
                 pair_products,
