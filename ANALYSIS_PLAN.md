@@ -92,6 +92,10 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   are bitwise identical to that source revision. The generic graph path remains
   the explicitly provisional prescription until the detailed propagation is
   adapted and qualified on CPU, CUDA, and AMDGPU.
+- 2026-09-02: `pupil_resolution` describes the external atmosphere/DM plane,
+  while `resolution` describes the padded Proper propagation grid. The measured
+  BAX307 calibration remains native 128-by-128; propagation-grid convergence
+  must therefore vary `resolution` while retaining `pupil_resolution=128`.
 
 ## Chunks
 
@@ -183,6 +187,28 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   removes approximately 173--176 KiB of host allocation per graph step.
   Detector response, chopping, and closed-loop command application remain
   outside this benchmark and are not yet accelerator-qualified.
+
+### SP-008: Qualify propagation-grid convergence and shared branching
+- Description: Establish a physically registered resolution-convergence oracle
+  for the provisional SPIDERS prescription, locate and correct the first
+  resolution-dependent optical-plane discrepancy, and replace duplicate
+  LLOWFS/SCC entrance-to-Lyot propagation with one shared coherent propagation
+  followed by complementary branch masks and separate camera relays.
+- Depends on: SP-002, SP-007
+- Verification: deterministic flat and evolving-atmosphere comparisons at
+  512-, 1024-, and 2048-pixel propagation grids; per-plane flux, sampling,
+  registration, and normalized complex-field residuals; branch outputs equal
+  the independently propagated reference within a justified tolerance; warmed
+  CPU, AMDGPU, and CUDA latency distributions retain exact configuration and
+  repository provenance.
+- Status: in-progress
+- Notes: initial 512-versus-1024 detector comparisons are not converged even
+  after flux normalization, so neither grid is yet an accepted scientific
+  reference. A temporary fork-at-Lyot prototype produced exactly equal LLOWFS
+  and SCC outputs to the two-prescription implementation and reduced the
+  measured Radeon 680M two-arm optical step from about 45.7 ms to 28.1 ms at a
+  1024-pixel propagation grid. This result must be reproduced by maintained
+  package code before it becomes qualification evidence.
 
 ## Open questions
 
