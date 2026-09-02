@@ -267,7 +267,7 @@ julia --project=. benchmarks/benchmark_cuda_graph_scc.jl \
     1024 100 0.1141323837216534 external
 ```
 
-The graph benchmark uses Proper 0.3's general `prepare_cuda_graph` and
+The graph benchmark uses Proper's general `prepare_cuda_graph` and
 `launch_cuda_graph!` API. The two commands exercise the complete reflective
 Lyot `llowfs_propagate!` path and the complete transmissive Lyot
 `spiders_propagate!` path through the SCC focus, respectively.
