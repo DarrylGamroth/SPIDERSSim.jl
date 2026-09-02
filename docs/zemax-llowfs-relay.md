@@ -32,6 +32,15 @@ The maintained local evidence copy is:
 /mnt/datadrive/DATA/SPIDERS/provenance/SubaruPathFinderV11-oae-dm-beam-comp-f64-apo12-planar-customLens-coldStop-rightlocation-filter-narcisist-aperture.ZAR
 ```
 
+The complete retired SpidersProper Git history and tracked optical fixtures
+are recoverable from the `spiders-proper-source-archive` tag in this repository
+and from the verified local bundle:
+
+```text
+/mnt/datadrive/DATA/SPIDERS/provenance/SpidersProper.git.bundle
+SHA-256: 9dbea03c3326b310401d4fc03888c093e3cbab8038bfd4855a5b09f58c4733fe
+```
+
 The prescription, catalog coefficients, derived values, and their provenance
 are documented here so the implementation can be reviewed without publishing
 the archive.
