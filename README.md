@@ -48,3 +48,22 @@ they are not fixed-arrival-rate capacity claims. CUDA and HIP results are
 device-specific and must not be compared as though they ran on identical
 hardware. See [`benchmark/results`](benchmark/results/README.md) for the
 recorded baseline and raw samples.
+
+## Live pyRTC viewer
+
+The SPIDERS viewer demo publishes a synthetic moving low-order pupil OPD,
+GoldEye LLOWFS frame, current C-RED 2 SCC exposure, and adjacent
+fringed-minus-unfringed SCC product through pyRTC-compatible shared memory.
+Set `PYRTC_PYTHON` to the Python interpreter in an environment containing the
+GitHub pyRTC package and viewer:
+
+```bash
+julia --project=examples/pyrtc -e 'using Pkg; Pkg.instantiate()'
+PYRTC_PYTHON=/path/to/venv/bin/python \
+  julia --project=examples/pyrtc \
+  examples/pyrtc/run_viewer_demo.jl amdgpu 120 20
+```
+
+Use `cpu` or `cuda` in place of `amdgpu` as appropriate. This demonstration
+visualizes the provisional optical and camera-synchronous chopper products; it
+does not yet run the LLOWFS or SCC reconstruction and control processes.

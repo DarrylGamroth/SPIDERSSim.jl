@@ -117,6 +117,8 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
 - Notes: GoldEye and C-RED 2 ownership, Float32 product shapes, and deployed
   `(SizeX, SizeY)` order are now explicit. Phase-tagged rolling difference,
   sequence monotonicity, reset, and dropped-frame invalidation are implemented.
+  The pyRTC viewer demo publishes both detector products and the adjacent
+  chopped difference through the maintained shared-memory convention.
   Detector-response qualification remains.
 
 ### SP-004: Implement LLOWFS calibration and processor
@@ -201,3 +203,8 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   agreement within `5.3e-6` between CPU and both accelerator backends. The
   raw 100-sample, three-repetition records and environment provenance are in
   `benchmark/results`.
+- 2026-09-01: the AMDGPU SPIDERS pyRTC viewer completed 1,950 paced frames
+  with exactly 975 fringed and 975 unfringed C-RED 2 exposures, live GoldEye
+  and SCC products, a nonzero adjacent chopped difference, early viewer-close
+  handling, and clean shared-memory teardown. This is visualization evidence,
+  not an RTC closed-loop result.
