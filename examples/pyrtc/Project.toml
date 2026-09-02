@@ -3,12 +3,14 @@ AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
 AdaptiveOpticsProperHIL = "f8cf4d55-df09-4aa3-9f68-0fc7f08233f0"
 AdaptiveOpticsSim = "002fb5eb-ad68-44a0-adbe-b299bfc2febc"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+Proper = "0686a737-3bdd-44da-9bf7-6692cf630078"
 SPIDERSSim = "d82bf5a6-3898-47dc-96d7-ac4be980672a"
 UnsafeArrays = "c4a57d5a-5b31-53a6-b365-19f8c011fbd6"
 
 [sources]
 AdaptiveOpticsProperHIL = {path = "../../../AdaptiveOpticsProperHIL.jl"}
 AdaptiveOpticsSim = {path = "../../../AdaptiveOpticsSim.jl"}
+Proper = {url = "https://github.com/DarrylGamroth/Proper.jl.git", rev = "f1aa417acd0176996769dcdfc8eda0de540d1f14"}
 SPIDERSSim = {path = "../.."}
 
 [compat]
@@ -16,6 +18,7 @@ AMDGPU = "2.8"
 AdaptiveOpticsProperHIL = "0.1"
 AdaptiveOpticsSim = "0.1"
 CUDA = "6"
+Proper = "0.4"
 SPIDERSSim = "0.1"
 UnsafeArrays = "1"
 julia = "1.12"

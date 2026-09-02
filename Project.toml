@@ -12,12 +12,12 @@ Proper = "0686a737-3bdd-44da-9bf7-6692cf630078"
 [sources]
 AdaptiveOpticsProperHIL = {path = "../AdaptiveOpticsProperHIL.jl"}
 AdaptiveOpticsSim = {path = "../AdaptiveOpticsSim.jl"}
-Proper = {url = "https://github.com/DarrylGamroth/Proper.jl.git", rev = "409171c1c3f12e869ac3b5484a269240dd4c0c7e"}
+Proper = {url = "https://github.com/DarrylGamroth/Proper.jl.git", rev = "f1aa417acd0176996769dcdfc8eda0de540d1f14"}
 
 [compat]
 AdaptiveOpticsProperHIL = "0.1"
 AdaptiveOpticsSim = "0.1"
-Proper = "0.3"
+Proper = "0.4"
 julia = "1.12"
 
 [extras]

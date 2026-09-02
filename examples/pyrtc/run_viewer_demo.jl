@@ -5,6 +5,7 @@ import CUDA
 using SPIDERSSim
 
 using AdaptiveOpticsSim.AlgorithmGraphs
+using AdaptiveOpticsSim.Optics: Source, photon_irradiance
 
 const Backends = AdaptiveOpticsSim.Backends
 const AOS_ROOT = dirname(dirname(pathof(AdaptiveOpticsSim)))
@@ -19,12 +20,15 @@ include(joinpath(
 using .PyRTCSharedMemory
 
 const STREAM_NAMES = (
-    "spidersPupilFieldReal",
-    "spidersLlowfs",
-    "spidersSccUnfringed",
-    "spidersSccDifference",
+    "spidersPupilAtmosphereOpd",
+    "spidersLlowfsPhotonRate",
+    "spidersSccUnfringedPhotonRate",
+    "spidersSccDifferencePhotonRate",
     "spidersDmSurfaceOpd",
 )
+
+const HR_8799_H_MAGNITUDE = 5.280f0
+const SPIDERS_ATMOSPHERE_RNG_SEED = UInt64(0x4852_3837_3939)
 
 function load_backend(name::Symbol)
     if name === :cpu
@@ -49,40 +53,106 @@ function device_copy(target, source::Matrix{T}) where {T}
     return destination
 end
 
-function graph_definition(configuration, pupil_opd, pupil_amplitude, name)
+"""Build the shared, provisional atmosphere-to-LLOWFS/SCC viewer graph."""
+function graph_definition(
+    llowfs_configuration,
+    scc_configuration,
+    pupil_amplitude,
+    atmosphere_step,
+)
+    pupil_resolution = llowfs_configuration.pupil_resolution
+    pupil_resolution == scc_configuration.pupil_resolution ||
+        error("LLOWFS and SCC pupil resolutions must match")
+    diameter_m = llowfs_configuration.diameter_m
+    diameter_m == scc_configuration.diameter_m ||
+        error("LLOWFS and SCC telescope diameters must match")
+    pupil_opd_schema = llowfs_configuration.pupil_opd_schema
+    pupil_opd_schema == scc_configuration.pupil_opd_schema ||
+        error("LLOWFS and SCC pupil OPD schemas must match")
+    atmosphere = multilayer_atmosphere_opd_node(
+        :atmosphere;
+        resolution=pupil_resolution,
+        telescope_diameter_m=diameter_m,
+        central_obstruction_ratio=0.0f0,
+        pupil_reflectivity=1.0f0,
+        aperture_revision=1,
+        r0=0.16f0,
+        reference_wavelength_m=500.0f-9,
+        L0=25.0f0,
+        fractional_cn2=(0.55f0, 0.20f0, 0.15f0, 0.10f0),
+        wind_speed=(5.0f0, 7.0f0, 10.0f0, 12.0f0),
+        wind_direction_deg=(0.0f0, 75.0f0, 170.0f0, 260.0f0),
+        altitude=(0.0f0, 2_000.0f0, 7_000.0f0, 12_000.0f0),
+        layer_ids=(:ground, :two_km, :seven_km, :twelve_km),
+        atmosphere_step,
+        rng_seed=SPIDERS_ATMOSPHERE_RNG_SEED,
+        atmosphere_opd_schema=pupil_opd_schema,
+        T=Float32,
+    )
     return algorithm_graph(
-        (proper_propagation_node(:proper, configuration),);
-        name,
+        (
+            atmosphere,
+            proper_propagation_node(:llowfs_optics, llowfs_configuration),
+            proper_propagation_node(:scc_optics, scc_configuration),
+        );
+        name=:spiders_hr_8799_viewer,
         inputs=(
-            graph_input(:pupil_opd, :proper => :pupil_opd, pupil_opd),
             graph_input(
-                :pupil_amplitude,
-                :proper => :pupil_amplitude,
+                :llowfs_pupil_amplitude,
+                :llowfs_optics => :pupil_amplitude,
+                pupil_amplitude,
+            ),
+            graph_input(
+                :scc_pupil_amplitude,
+                :scc_optics => :pupil_amplitude,
                 pupil_amplitude,
             ),
         ),
-        outputs=(graph_output(:intensity, :proper => :output),),
+        outputs=(
+            graph_output(
+                :atmosphere_opd,
+                :atmosphere => :atmosphere_opd,
+            ),
+            graph_output(
+                :llowfs_relative_intensity,
+                :llowfs_optics => :output,
+            ),
+            graph_output(
+                :scc_relative_intensity,
+                :scc_optics => :output,
+            ),
+        ),
+        links=(
+            link(
+                :atmosphere => :atmosphere_opd,
+                :llowfs_optics => :pupil_opd,
+            ),
+            link(
+                :atmosphere => :atmosphere_opd,
+                :scc_optics => :pupil_opd,
+            ),
+        ),
     )
 end
 
-function moving_opd!(opd::Matrix{T}, frame::Int) where {T}
-    phase = T(frame) * T(0.035)
-    rows, columns = size(opd)
-    row_center = T(rows + 1) / T(2)
-    column_center = T(columns + 1) / T(2)
-    two_pi = T(2pi)
-    @inbounds for column in axes(opd, 2)
-        x = (T(column) - column_center) / T(columns)
-        for row in axes(opd, 1)
-            y = (T(row) - row_center) / T(rows)
-            opd[row, column] = T(2.5e-7) * (
-                T(0.55) * sin(two_pi * (x + phase)) +
-                T(0.30) * sin(two_pi * (T(2) * y - T(0.7) * phase)) +
-                T(0.15) * sin(two_pi * (x + y + T(1.3) * phase))
-            )
-        end
-    end
-    return opd
+"""
+Convert the prescription's unit-amplitude relative intensity to provisional
+source-scaled photon-arrival rate. The scale treats each input pupil sample as
+one square collecting-area cell and compensates for the final camera
+magnification. It does not supply as-built optical throughput or detector
+response.
+"""
+function provisional_photon_rate_scale(profile, configuration, source)
+    pupil_sample_pitch_m =
+        profile.optics.subaru_pupil_diameter_m /
+        configuration.pupil_resolution
+    camera_magnification =
+        configuration.prescription.parameters.camera_magnification
+    source_photon_irradiance_m2_s = photon_irradiance(source)
+    return Float32(
+        source_photon_irradiance_m2_s * pupil_sample_pitch_m^2 /
+        camera_magnification^2,
+    )
 end
 
 function viewer_executable()
@@ -126,6 +196,12 @@ function run_demo(
     profile = provisional_spiders_h_regular_profile(Float32)
     llowfs_configuration = provisional_spiders_llowfs_configuration(profile)
     scc_configuration = provisional_spiders_chopped_scc_configuration(profile)
+    source = Source(
+        band=:H,
+        magnitude=HR_8799_H_MAGNITUDE,
+        wavelength=profile.wavelength_um * 1.0f-6,
+        T=Float32,
+    )
     pupil_shape = (
         llowfs_configuration.pupil_resolution,
         llowfs_configuration.pupil_resolution,
@@ -135,26 +211,13 @@ function run_demo(
         profile,
         pupil_shape[1],
     )
-    pupil_opd = device_copy(target, pupil_opd_host)
     pupil_amplitude = device_copy(target, pupil_amplitude_host)
-    pupil_field_real = zeros(Float32, pupil_shape)
-    phase_per_opd = Float32(2pi / (profile.wavelength_um * 1f-6))
-    llowfs_graph = prepare_algorithm_graph(
+    graph = prepare_algorithm_graph(
         graph_definition(
             llowfs_configuration,
-            pupil_opd,
-            pupil_amplitude,
-            :spiders_llowfs_viewer,
-        );
-        target,
-        execution=StreamGraphExecution(),
-    )
-    scc_graph = prepare_algorithm_graph(
-        graph_definition(
             scc_configuration,
-            pupil_opd,
             pupil_amplitude,
-            :spiders_scc_viewer,
+            inv(Float32(frame_rate)),
         );
         target,
         execution=StreamGraphExecution(),
@@ -162,19 +225,29 @@ function run_demo(
 
     llowfs = zeros(Float32, profile.llowfs_output_shape)
     scc_frame = zeros(Float32, profile.scc_output_shape)
+    llowfs_photon_rate_scale = provisional_photon_rate_scale(
+        profile,
+        llowfs_configuration,
+        source,
+    )
+    scc_photon_rate_scale = provisional_photon_rate_scale(
+        profile,
+        scc_configuration,
+        source,
+    )
     pair_plan, pair_state, pair_products = prepare_scc_pairing(
         Float32;
         frame_shape=profile.scc_output_shape,
     )
     dm_surface_opd = zeros(Float32, pupil_shape)
-    pupil_field_stream = nothing
+    pupil_opd_stream = nothing
     llowfs_stream = nothing
     scc_unfringed_stream = nothing
     scc_difference_stream = nothing
     dm_surface_opd_stream = nothing
     viewer = nothing
     try
-        pupil_field_stream = create_stream(
+        pupil_opd_stream = create_stream(
             STREAM_NAMES[1],
             Float32,
             pupil_shape,
@@ -215,6 +288,13 @@ function run_demo(
         end
         viewer = run(command; wait=false)
 
+        println(
+            "target HR 8799, H magnitude ", HR_8799_H_MAGNITUDE,
+            ", photon irradiance ",
+            photon_irradiance(source),
+            " photons s^-1 m^-2",
+        )
+
         started = time()
         next_frame = started
         frame = 0
@@ -222,16 +302,34 @@ function run_demo(
         unfringed_count = 0
         while time() - started < duration && process_running(viewer)
             frame += 1
-            moving_opd!(pupil_opd_host, frame)
-            @. pupil_field_real = pupil_amplitude_host *
-                cos(phase_per_opd * pupil_opd_host)
-            copyto!(pupil_opd, pupil_opd_host)
-            step_graph!(llowfs_graph)
-            step_graph!(scc_graph)
-            copyto!(llowfs, graph_output(llowfs_graph, :intensity))
-            copyto!(scc_frame, graph_output(scc_graph, :intensity))
+            step_graph!(graph)
+            copyto!(
+                pupil_opd_host,
+                graph_output(graph, :atmosphere_opd),
+            )
+            @. pupil_opd_host = ifelse(
+                iszero(pupil_amplitude_host),
+                0.0f0,
+                pupil_opd_host,
+            )
+            copyto!(
+                llowfs,
+                graph_output(graph, :llowfs_relative_intensity),
+            )
+            copyto!(
+                scc_frame,
+                graph_output(graph, :scc_relative_intensity),
+            )
+            @. llowfs = max(
+                llowfs * llowfs_photon_rate_scale,
+                0.0f0,
+            )
+            @. scc_frame = max(
+                scc_frame * scc_photon_rate_scale,
+                0.0f0,
+            )
 
-            status = spiders_chopper_frame_status(scc_graph)
+            status = spiders_chopper_frame_status(graph, Val(:scc_optics))
             phase = spiders_chopper_phase(status)
             accept_scc_frame!(
                 pair_products,
@@ -247,7 +345,7 @@ function run_demo(
                 unfringed_count += 1
             end
 
-            publish!(pupil_field_stream, pupil_field_real)
+            publish!(pupil_opd_stream, pupil_opd_host)
             publish!(llowfs_stream, llowfs)
             pair_state.have_unfringed &&
                 publish!(scc_unfringed_stream, pair_state.unfringed)
@@ -259,6 +357,7 @@ function run_demo(
                 println(
                     "frame ", frame,
                     ", SCC phase ", phase,
+                    ", atmosphere OPD range ", extrema(pupil_opd_host),
                     ", LLOWFS range ", extrema(llowfs),
                     ", unfringed SCC range ", extrema(pair_state.unfringed),
                     ", SCC difference range ", extrema(pair_products.difference),
@@ -281,7 +380,7 @@ function run_demo(
         close_stream_noexcept!(scc_difference_stream)
         close_stream_noexcept!(scc_unfringed_stream)
         close_stream_noexcept!(llowfs_stream)
-        close_stream_noexcept!(pupil_field_stream)
+        close_stream_noexcept!(pupil_opd_stream)
     end
     return nothing
 end

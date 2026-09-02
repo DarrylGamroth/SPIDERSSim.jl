@@ -51,15 +51,24 @@ recorded baseline and raw samples.
 
 ## Live pyRTC viewer
 
-The SPIDERS viewer demo propagates a synthetic moving low-order pupil OPD
-through the provisional Subaru entrance pupil, including its central
-obscuration and four secondary-mirror supports. It publishes the real part of
-the entrance-pupil electric field, the GoldEye LLOWFS frame, the most recent
-unfringed C-RED 2 SCC science image, the paired fringed-minus-unfringed SCC
-product, and the current deformable-mirror surface OPD through pyRTC-compatible
-shared memory. The deformable-mirror surface remains exactly flat until command
-application is connected. Set `PYRTC_PYTHON` to the Python interpreter in an
-environment containing the GitHub pyRTC package and viewer:
+The SPIDERS viewer demo uses HR 8799 as an on-axis H-band point source. This is
+a real [SCExAO/CHARIS observing target](https://subarutelescope.org/Projects/SCEXAO/scexaoWEB/080images.web/030science.web/indexm.html);
+the adopted 2MASS H magnitude is
+[5.280](https://simbad.cds.unistra.fr/simbad/sim-id?Ident=HR+8799). A
+deterministic, provisional four-layer atmosphere evolves above the Subaru
+entrance pupil. The demo publishes masked pupil-plane atmospheric OPD, the
+source-scaled GoldEye LLOWFS photon-arrival-rate frame, the most recent
+unfringed C-RED 2 SCC photon-arrival-rate image, the paired
+fringed-minus-unfringed SCC product, and the current deformable-mirror surface
+OPD through pyRTC-compatible shared memory.
+
+The atmospheric profile is a visualization fixture, not a reconstruction of a
+specific HR 8799 observing night. The source scaling includes catalogued H-band
+brightness and modeled geometric propagation, but not qualified instrument
+throughput, exposure, or detector response. The deformable-mirror surface
+remains exactly flat until command application is connected. Set
+`PYRTC_PYTHON` to the Python interpreter in an environment containing the
+GitHub pyRTC package and viewer:
 
 ```bash
 julia --project=examples/pyrtc -e 'using Pkg; Pkg.instantiate()'
