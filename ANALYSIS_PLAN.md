@@ -115,8 +115,9 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   and detector-response tests.
 - Status: in-progress
 - Notes: GoldEye and C-RED 2 ownership, Float32 product shapes, and deployed
-  `(SizeX, SizeY)` order are now explicit. Phase-pair formation and dropped
-  frame behavior remain.
+  `(SizeX, SizeY)` order are now explicit. Phase-tagged rolling difference,
+  sequence monotonicity, reset, and dropped-frame invalidation are implemented.
+  Detector-response qualification remains.
 
 ### SP-004: Implement LLOWFS calibration and processor
 - Description: Port reviewed normalization, reference subtraction, masked
@@ -138,8 +139,9 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   rank, and parity against selected SCC artifacts.
 - Status: in-progress
 - Notes: the typed CPU processor now applies an explicit correction mask and
-  maps a complete C-RED 2 chopped difference to actuator coefficients. Pair
-  formation, interaction-matrix generation, and artifact parity remain.
+  maps a complete C-RED 2 chopped difference to actuator coefficients. Rolling
+  pair formation is implemented; interaction-matrix generation and artifact
+  parity remain.
 
 ### SP-006: Validate independent-process control
 - Description: Add isolated pyRTC-compatible LLOWFS and SCC processes using
@@ -184,3 +186,7 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   normalization/modal reconstruction and C-RED 2 masked difference
   reconstruction on dense and non-contiguous host views. Both warmed process
   calls allocate zero Julia heap bytes and pass with bounds checks enabled.
+- 2026-09-01: C-RED 2 pairing tests establish explicit phase ownership,
+  rolling fringed-minus-unfringed products, monotonic sequence rejection,
+  dropped-frame invalidation, recovery on the next adjacent pair, reset, and
+  zero-allocation warmed acceptance.

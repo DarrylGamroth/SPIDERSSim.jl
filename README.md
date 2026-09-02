@@ -21,3 +21,9 @@ masks, and image-to-actuator calibration; `process_scc!` consumes the complete
 fringed-minus-unfringed product. The processor contracts intentionally require
 one-based, host-scalar-indexable matrices; GPU optical products cross an
 explicit device-to-host RTC boundary first.
+
+`prepare_scc_pairing` creates the persistent C-RED 2 acquisition state.
+`accept_scc_frame!` consumes an explicitly phase-tagged complete frame and
+publishes a rolling fringed-minus-unfringed product only when the two retained
+phases are adjacent in sequence. A dropped frame invalidates the product until
+the next adjacent pair, so stale images cannot silently cross a gap.

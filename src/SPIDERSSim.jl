@@ -52,6 +52,12 @@ export SpidersEvidenceLevel,
     SpidersFringed,
     SpidersChopperPlan,
     SpidersChopperFrameStatus,
+    SpidersSCCPairPlan,
+    SpidersSCCPairState,
+    SpidersSCCPairProducts,
+    prepare_scc_pairing,
+    accept_scc_frame!,
+    reset_scc_pairing!,
     ProvisionalSpidersLLOWFSPrescription,
     ProvisionalSpidersSCCPrescription,
     ProvisionalSpidersChoppedSCCPrescription,
@@ -80,6 +86,7 @@ export SpidersEvidenceLevel,
 include("spiders_provisional.jl")
 include("spiders_prescriptions.jl")
 include("spiders_chopper.jl")
+include("scc_pairing.jl")
 include("reconstructors.jl")
 
 end # module SPIDERSSim
