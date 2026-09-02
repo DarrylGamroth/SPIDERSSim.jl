@@ -159,8 +159,15 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
 - Depends on: SP-002, SP-003
 - Verification: numerical tolerances, warmed allocation evidence, and recorded
   frame-service benchmarks.
-- Status: not-started
-- Notes:
+- Status: in-progress
+- Notes: complete static LLOWFS and SCC optical graphs are capture-qualified.
+  The 2026-09-01 baseline establishes CPU, AMDGPU/HIP Graph, and CUDA Graph
+  numerical agreement and synchronized service times at the explicit host RTC
+  boundary. CUDA capture reduces latency and host allocation on the measured
+  RTX 3050 Ti; HIP capture is latency-neutral on the measured Radeon 680M but
+  removes approximately 173--176 KiB of host allocation per graph step.
+  Detector response, chopping, and closed-loop command application remain
+  outside this benchmark and are not yet accelerator-qualified.
 
 ## Open questions
 
@@ -190,3 +197,7 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   rolling fringed-minus-unfringed products, monotonic sequence rejection,
   dropped-frame invalidation, recovery on the next adjacent pair, reset, and
   zero-allocation warmed acceptance.
+- 2026-09-01: clean-revision production-grid benchmarks establish relative L2
+  agreement within `5.3e-6` between CPU and both accelerator backends. The
+  raw 100-sample, three-repetition records and environment provenance are in
+  `benchmark/results`.

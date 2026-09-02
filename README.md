@@ -46,4 +46,5 @@ julia --project=benchmark benchmark/optical_graph.jl cuda 100 3
 These are closed-loop service-time measurements with one outstanding frame;
 they are not fixed-arrival-rate capacity claims. CUDA and HIP results are
 device-specific and must not be compared as though they ran on identical
-hardware.
+hardware. See [`benchmark/results`](benchmark/results/README.md) for the
+recorded baseline and raw samples.
