@@ -262,7 +262,7 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   residual at focal propagation: 6.4% normalized complex-field residual for
   512 versus 1024 and 4.3% for 1024 versus 2048. Correcting detector output
   coordinates reduced the previously invalid order-unity detector comparison
-  to a monotone convergence sequence. Package tests pass 266/266 and now gate
+  to a monotone convergence sequence. Package tests pass 275/275 and now gate
   detector-sampling invariance across 512- and 1024-pixel grids, exact shared-
   branch parity, chopped-frame lifecycle, inference, and warmed CPU allocation.
 - 2026-09-02: retained 100-sample-by-three-repetition measurements show the
