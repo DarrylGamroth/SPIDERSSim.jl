@@ -93,8 +93,9 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
 - Depends on: none
 - Verification: both packages load and pass their focused CPU tests; no
   SPIDERS public symbol remains exported by AdaptiveOpticsProperHIL.
-- Status: in-progress
-- Notes: preserve git history with explicit extraction commits in both repos.
+- Status: complete
+- Notes: SPIDERSSim baseline `af3e5d5`; generic-adapter extraction
+  `AdaptiveOpticsProperHIL.jl@c812ae5`.
 
 ### SP-002: Reconcile optical artifacts
 - Description: Compare the provisional LLOWFS/SCC outputs with SpidersProper,
@@ -112,8 +113,10 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
 - Depends on: SP-001, SP-002
 - Verification: synthetic phase sequence, reset, dropped-frame, orientation,
   and detector-response tests.
-- Status: not-started
-- Notes:
+- Status: in-progress
+- Notes: GoldEye and C-RED 2 ownership, Float32 product shapes, and deployed
+  `(SizeX, SizeY)` order are now explicit. Phase-pair formation and dropped
+  frame behavior remain.
 
 ### SP-004: Implement LLOWFS calibration and processor
 - Description: Port reviewed normalization, reference subtraction, masked
@@ -122,8 +125,10 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
 - Depends on: SP-002, SP-003
 - Verification: analytical synthetic fixtures plus parity against selected
   deployed calibration artifacts.
-- Status: not-started
-- Notes:
+- Status: in-progress
+- Notes: the typed CPU processor now implements total-flux normalization,
+  selected-pixel reference subtraction, modal reconstruction, centroid
+  tip/tilt reporting, and actuator mapping. Artifact parity remains.
 
 ### SP-005: Implement SCC calibration and processor
 - Description: Define chopped-difference formation, dark-hole masks,
@@ -131,8 +136,10 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
 - Depends on: SP-002, SP-003
 - Verification: synthetic complex-speckle probes, push-pull linearity, retained
   rank, and parity against selected SCC artifacts.
-- Status: not-started
-- Notes:
+- Status: in-progress
+- Notes: the typed CPU processor now applies an explicit correction mask and
+  maps a complete C-RED 2 chopped difference to actuator coefficients. Pair
+  formation, interaction-matrix generation, and artifact parity remain.
 
 ### SP-006: Validate independent-process control
 - Description: Add isolated pyRTC-compatible LLOWFS and SCC processes using
@@ -173,3 +180,7 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
 - 2026-09-01: existing chopper tests establish deterministic fringed/unfringed
   alternation, phase status aligned with graph sequence, reset semantics, and
   allocation-free warmed stepping.
+- 2026-09-01: focused native processor tests establish deterministic GoldEye
+  normalization/modal reconstruction and C-RED 2 masked difference
+  reconstruction on dense and non-contiguous host views. Both warmed process
+  calls allocate zero Julia heap bytes and pass with bounds checks enabled.

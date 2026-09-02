@@ -3,6 +3,7 @@ module SPIDERSSim
 
 using AdaptiveOpticsProperHIL
 using AdaptiveOpticsSim
+using LinearAlgebra
 using Proper
 
 import AdaptiveOpticsProperHIL:
@@ -64,11 +65,21 @@ export SpidersEvidenceLevel,
     spiders_chopper_sequence,
     spiders_chopper_phase,
     spiders_prescription_claims,
-    spiders_configuration_claims
+    spiders_configuration_claims,
+    SpidersLLOWFSPlan,
+    SpidersLLOWFSWorkspace,
+    SpidersLLOWFSProducts,
+    prepare_llowfs,
+    process_llowfs!,
+    SpidersSCCPlan,
+    SpidersSCCWorkspace,
+    SpidersSCCProducts,
+    prepare_scc,
+    process_scc!
 
 include("spiders_provisional.jl")
 include("spiders_prescriptions.jl")
 include("spiders_chopper.jl")
+include("reconstructors.jl")
 
 end # module SPIDERSSim
-

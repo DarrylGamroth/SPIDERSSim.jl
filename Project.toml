@@ -6,6 +6,7 @@ authors = ["SPIDERS simulation contributors"]
 [deps]
 AdaptiveOpticsProperHIL = "f8cf4d55-df09-4aa3-9f68-0fc7f08233f0"
 AdaptiveOpticsSim = "002fb5eb-ad68-44a0-adbe-b299bfc2febc"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Proper = "0686a737-3bdd-44da-9bf7-6692cf630078"
 
 [sources]
@@ -24,4 +25,3 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test"]
-
