@@ -112,6 +112,10 @@ end
         :proper,
     )
     scc_owner = AlgorithmGraphs.prepared_graph_node(scc_graph, :proper)
+    @test AlgorithmGraphs.graph_node_capture_capability(llowfs_owner) isa
+        AlgorithmGraphs.GraphNodeCaptureSafe
+    @test AlgorithmGraphs.graph_node_capture_capability(scc_owner) isa
+        AlgorithmGraphs.GraphNodeCaptureSafe
     @test llowfs_owner.pupil_opd === pupil_opd
     @test scc_owner.pupil_opd === pupil_opd
     @test size(llowfs_owner.workspace.assets.padded_pupil_opd) == (512, 512)

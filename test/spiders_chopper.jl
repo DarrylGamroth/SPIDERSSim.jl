@@ -112,6 +112,8 @@ end
 
     reset_graph!(chopped_graph)
     owner = AlgorithmGraphs.prepared_graph_node(chopped_graph, :proper)
+    @test AlgorithmGraphs.graph_node_capture_capability(owner) isa
+        AlgorithmGraphs.GraphNodeCaptureUnsupported
     owner.state.prescription.completed_sequence = typemax(UInt64)
     prior_output = copy(graph_output(chopped_graph, :intensity))
     @test_throws ArgumentError step_graph!(chopped_graph)
