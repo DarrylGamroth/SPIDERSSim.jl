@@ -27,3 +27,23 @@ explicit device-to-host RTC boundary first.
 publishes a rolling fringed-minus-unfringed product only when the two retained
 phases are adjacent in sequence. A dropped frame invalidates the product until
 the next adjacent pair, so stale images cannot silently cross a gap.
+
+## Optical graph benchmarks
+
+The maintained benchmark compares ordinary stream execution with complete
+CUDA/HIP Graph capture for the production-sized provisional LLOWFS and SCC
+optical graphs. It records synchronized core latency, complete device-to-host
+publication latency, host allocations, raw samples, correctness against CPU,
+source revisions, and the runtime environment:
+
+```bash
+julia --project=benchmark -e 'using Pkg; Pkg.instantiate()'
+julia --project=benchmark benchmark/optical_graph.jl cpu 100 3
+julia --project=benchmark benchmark/optical_graph.jl amdgpu 100 3
+julia --project=benchmark benchmark/optical_graph.jl cuda 100 3
+```
+
+These are closed-loop service-time measurements with one outstanding frame;
+they are not fixed-arrival-rate capacity claims. CUDA and HIP results are
+device-specific and must not be compared as though they ran on identical
+hardware.
