@@ -202,13 +202,20 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   CPU, AMDGPU, and CUDA latency distributions retain exact configuration and
   repository provenance.
 - Status: in-progress
-- Notes: initial 512-versus-1024 detector comparisons are not converged even
-  after flux normalization, so neither grid is yet an accepted scientific
-  reference. A temporary fork-at-Lyot prototype produced exactly equal LLOWFS
-  and SCC outputs to the two-prescription implementation and reduced the
-  measured Radeon 680M two-arm optical step from about 45.7 ms to 28.1 ms at a
-  1024-pixel propagation grid. This result must be reproduced by maintained
-  package code before it becomes qualification evidence.
+- Notes: the first 512-versus-1024 detector comparison was invalid because it
+  compared equal array indices at different physical detector coordinates.
+  Native detector sampling halves with each propagation-grid doubling, while
+  fixed output magnification previously exposed those different coordinates
+  through arrays of the same shape. The output mapping now compensates for
+  propagation-grid oversampling. On a flat analytic pupil, the corrected
+  512-to-1024 normalized-image residuals are about 9.5% LLOWFS and 6.9% SCC,
+  falling to 7.6% and 4.2% from 1024 to 2048, and 5.2% and 2.7% from 2048 to
+  4096. Flux ratios converge substantially faster. A temporary fork-at-Lyot
+  prototype produced exactly equal LLOWFS and SCC outputs to the
+  two-prescription implementation and reduced the measured Radeon 680M
+  two-arm optical step from about 45.7 ms to 28.1 ms at a 1024-pixel
+  propagation grid. This result must be reproduced by maintained package code
+  before it becomes qualification evidence.
 
 ## Open questions
 
@@ -247,3 +254,10 @@ is known: LLOWFS uses GoldEye and SCC uses C-RED 2.
   and SCC products, a nonzero adjacent chopped difference, early viewer-close
   handling, and clean shared-memory teardown. This is visualization evidence,
   not an RTC closed-loop result.
+- 2026-09-02: SP-008 plane tracing established exact 128-pupil embedding on
+  corresponding physical samples and located the first ordinary discretization
+  residual at focal propagation: 6.4% normalized complex-field residual for
+  512 versus 1024 and 4.3% for 1024 versus 2048. Correcting detector output
+  coordinates reduced the previously invalid order-unity detector comparison
+  to a monotone convergence sequence. Focused prescription tests pass 52/52
+  and now gate detector-sampling invariance across 512- and 1024-pixel grids.

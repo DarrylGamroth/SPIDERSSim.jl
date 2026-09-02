@@ -37,6 +37,41 @@ function _spiders_test_graph(configuration, pupil_opd, pupil_amplitude)
     )
 end
 
+function _spiders_resolution_comparison(
+    low_configuration,
+    high_configuration,
+    pupil_amplitude,
+)
+    pupil_opd = zeros(eltype(pupil_amplitude), size(pupil_amplitude))
+    low = _spiders_graph(
+        low_configuration,
+        pupil_opd,
+        pupil_amplitude,
+    )
+    high = _spiders_graph(
+        high_configuration,
+        pupil_opd,
+        pupil_amplitude,
+    )
+    step_graph!(low)
+    step_graph!(high)
+    low_intensity = copy(graph_output(low, :intensity))
+    high_intensity = copy(graph_output(high, :intensity))
+    low_normalized = low_intensity ./ sum(low_intensity)
+    high_normalized = high_intensity ./ sum(high_intensity)
+    low_owner = AlgorithmGraphs.prepared_graph_node(low, :proper)
+    high_owner = AlgorithmGraphs.prepared_graph_node(high, :proper)
+    _, low_sampling_m = Proper.prop_run(low_owner.workspace.run)
+    _, high_sampling_m = Proper.prop_run(high_owner.workspace.run)
+    return (
+        normalized_l2=norm(low_normalized - high_normalized) /
+            norm(high_normalized),
+        flux_ratio=sum(low_intensity) / sum(high_intensity),
+        low_sampling_m,
+        high_sampling_m,
+    )
+end
+
 @testset "provisional SPIDERS Proper prescriptions" begin
     profile = provisional_spiders_h_regular_profile(Float32)
     llowfs_configuration = provisional_spiders_llowfs_configuration(profile)
@@ -94,6 +129,35 @@ end
     @test minimum(scc_reference) >= -10eps(Float32)
     @test sum(llowfs_reference) > 0
     @test sum(scc_reference) > 0
+
+    pupil_amplitude_convergence =
+        provisional_spiders_entrance_pupil_amplitude(profile, 128)
+    llowfs_convergence = _spiders_resolution_comparison(
+        llowfs_configuration,
+        provisional_spiders_llowfs_configuration(
+            profile;
+            resolution=1024,
+            pupil_resolution=128,
+        ),
+        pupil_amplitude_convergence,
+    )
+    scc_convergence = _spiders_resolution_comparison(
+        scc_configuration,
+        provisional_spiders_scc_configuration(
+            profile;
+            resolution=1024,
+            pupil_resolution=128,
+        ),
+        pupil_amplitude_convergence,
+    )
+    @test llowfs_convergence.low_sampling_m ≈
+        llowfs_convergence.high_sampling_m rtol = 10eps(Float32)
+    @test scc_convergence.low_sampling_m ≈
+        scc_convergence.high_sampling_m rtol = 10eps(Float32)
+    @test llowfs_convergence.normalized_l2 < 0.10
+    @test scc_convergence.normalized_l2 < 0.08
+    @test llowfs_convergence.flux_ratio ≈ 1 rtol = 0.02
+    @test scc_convergence.flux_ratio ≈ 1 rtol = 0.02
 
     _spiders_tilt!(pupil_opd, 2f-6)
     @test step_graph!(llowfs_graph) === llowfs_graph

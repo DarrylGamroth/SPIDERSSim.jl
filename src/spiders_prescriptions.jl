@@ -3,6 +3,14 @@ const PROVISIONAL_SPIDERS_LLOWFS_SCHEMA =
 const PROVISIONAL_SPIDERS_SCC_SCHEMA =
     "org.subaru.spiders.scc-relative-intensity/provisional-1"
 
+"""
+Prepared numerical parameters for the provisional LLOWFS and SCC prescription.
+
+`camera_magnification` is the detector resampling factor when one external
+pupil sample maps to one propagation-grid sample. Execution compensates this
+factor for any additional propagation-grid sampling so the caller-visible
+detector coordinates do not change with `resolution`.
+"""
 struct SpidersSurrogateParameters{T<:Union{Float32,Float64}}
     beam_diameter_fraction::T
     camera_magnification::T
@@ -736,13 +744,15 @@ function _run_provisional_spiders_prescription(
         rotated_intensity,
         run_context,
     )
+    detector_magnification =
+        parameters.camera_magnification / pupil_magnification
     Proper.prop_magnify!(
         output,
         camera_intensity,
-        parameters.camera_magnification,
+        detector_magnification,
         detector_resample_context,
     )
-    return output, sampling_m / parameters.camera_magnification
+    return output, sampling_m / detector_magnification
 end
 
 function (prescription::ProvisionalSpidersLLOWFSPrescription)(
