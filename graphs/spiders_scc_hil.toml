@@ -1,0 +1,44 @@
+# SPIDERS external-RTC SCC HIL sensor topology.
+#
+# The Julia application must register the trusted node type below with
+# `proper_propagation_node_factory(configuration)`. That captured
+# configuration owns the physical prescription, propagation-grid size,
+# rectangular observation shape, wavelength, output units/schema, and any
+# prepared instrument assets. This topology file deliberately does not invent
+# the missing SPIDERS optical prescription, initial SCC chopper phase, or
+# C-RED 2 detector calibration. A registered chopped prescription owns the
+# phase state; the application owns its model-time cadence.
+#
+# The surrounding AOS simulation receives one complete 468-coordinate PDM
+# command from the external RTC, applies the measured DM response, and renders
+# the SCC path's complete pupil OPD and amplitude before this graph step. This
+# graph contains no RTC estimator, controller, command mixer, or DM policy. Its
+# complete observation is suitable for publication to PipeWireAO with the
+# authoritative fringed/unfringed state metadata owned by the acquisition
+# adapter. The current legacy SCC products are 416-by-380; the registered
+# C-RED 2 product is 416-by-380; the registered configuration must declare and
+# validate that shape and the acquisition adapter must preserve the deployed
+# `(SizeX, SizeY)` array order.
+
+schema_version = 1
+name = "spiders_scc_hil"
+
+[[nodes]]
+name = "scc_optics"
+type = "spiders_scc_proper"
+
+[nodes.config]
+
+[[inputs]]
+name = "pupil_opd"
+destination = "scc_optics.pupil_opd"
+binding = "pupil_opd"
+
+[[inputs]]
+name = "pupil_amplitude"
+destination = "scc_optics.pupil_amplitude"
+binding = "pupil_amplitude"
+
+[[outputs]]
+name = "scc_observation"
+source = "scc_optics.output"

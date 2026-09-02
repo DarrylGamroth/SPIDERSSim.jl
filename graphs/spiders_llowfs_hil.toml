@@ -1,0 +1,39 @@
+# SPIDERS external-RTC LLOWFS HIL sensor topology.
+#
+# The Julia application must register the trusted node type below with
+# `proper_propagation_node_factory(configuration)`. That captured
+# configuration owns the physical prescription, propagation-grid size,
+# rectangular observation shape, wavelength, output units/schema, and any
+# prepared instrument assets. This topology file deliberately does not invent
+# the missing SPIDERS optical prescription or detector calibration.
+#
+# The surrounding AOS simulation receives one complete 468-coordinate PDM
+# command from the external RTC, applies the measured DM response, and renders
+# the LLOWFS path's complete pupil OPD and amplitude before this graph step.
+# This graph contains no RTC estimator, controller, command mixer, or DM
+# policy. Its complete observation is suitable for publication to PipeWireAO.
+# The current admitted legacy LLOWFS product is 34-by-47; the registered
+# configuration must declare and validate its own shape.
+
+schema_version = 1
+name = "spiders_llowfs_hil"
+
+[[nodes]]
+name = "llowfs_optics"
+type = "spiders_llowfs_proper"
+
+[nodes.config]
+
+[[inputs]]
+name = "pupil_opd"
+destination = "llowfs_optics.pupil_opd"
+binding = "pupil_opd"
+
+[[inputs]]
+name = "pupil_amplitude"
+destination = "llowfs_optics.pupil_amplitude"
+binding = "pupil_amplitude"
+
+[[outputs]]
+name = "llowfs_observation"
+source = "llowfs_optics.output"
